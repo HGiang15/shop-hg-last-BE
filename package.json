@@ -1,0 +1,29 @@
+{
+  "name": "project_be",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon --inspect index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HGiang15/shop-hg-last-BE.git"
+  },
+  "keywords": [
+    "123"
+  ],
+  "author": "hg",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/HGiang15/shop-hg-last-BE/issues"
+  },
+  "homepage": "https://github.com/HGiang15/shop-hg-last-BE#readme",
+  "description": "",
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
