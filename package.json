@@ -1,29 +1,34 @@
 {
-  "name": "project_be",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "start": "nodemon --inspect index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/HGiang15/shop-hg-last-BE.git"
-  },
-  "keywords": [
-    "123"
-  ],
-  "author": "hg",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/HGiang15/shop-hg-last-BE/issues"
-  },
-  "homepage": "https://github.com/HGiang15/shop-hg-last-BE#readme",
-  "description": "",
-  "dependencies": {
-    "express": "^4.21.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.9"
-  }
+	"name": "project_be",
+	"version": "1.0.0",
+	"main": "index.js",
+	"scripts": {
+		"start": "nodemon --inspect src/index.js",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/HGiang15/shop-hg-last-BE.git"
+	},
+	"keywords": [
+		"123"
+	],
+	"author": "hg",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/HGiang15/shop-hg-last-BE/issues"
+	},
+	"homepage": "https://github.com/HGiang15/shop-hg-last-BE#readme",
+	"description": "",
+	"dependencies": {
+		"bcrypt": "^5.1.1",
+		"bcryptjs": "^3.0.2",
+		"dotenv": "^16.4.7",
+		"express": "^4.21.2",
+		"mongoose": "^8.12.0"
+	},
+	"devDependencies": {
+		"morgan": "^1.10.0",
+		"nodemon": "^3.1.9"
+	}
 }
