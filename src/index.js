@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const morgan = require('morgan');
+const cors = require('cors');
 const db = require('./config/db');
 const UserRouter = require('./api/User');
 
@@ -18,6 +19,9 @@ app.use(
 		extended: true,
 	})
 );
+
+// cors
+app.use(cors());
 
 // HTTP logger
 app.use(morgan('combined'));

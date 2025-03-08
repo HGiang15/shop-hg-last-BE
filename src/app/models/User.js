@@ -29,6 +29,7 @@ const UserSchema = new Schema(
 			required: true,
 			minlength: 6,
 		},
+		role: {type: Number, enum: [0, 1], default: 1},
 	},
 	{timeseries: true, versionKey: false}
 );
