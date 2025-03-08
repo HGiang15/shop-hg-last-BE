@@ -15,6 +15,13 @@ const UserSchema = new Schema(
 			lowercase: true,
 			trim: true,
 		},
+		phone: {
+			type: String,
+			required: true,
+			unique: true,
+			trim: true,
+			// match: [/^\d{10,15}$/, 'Invalid phone number'], // Số điện thoại từ 10-15 số
+		},
 		dateOfBirth: {
 			type: Date,
 			required: true,
