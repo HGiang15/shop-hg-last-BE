@@ -12,6 +12,8 @@ const generateToken = (user) => {
 // Đăng ký tài khoản
 router.post('/register', async (req, res) => {
 	try {
+		await new Promise((resolve) => setTimeout(resolve, 4000));
+
 		let {name, email, phone, dateOfBirth, gender, password, role} = req.body;
 		name = name.trim();
 		email = email.trim();
@@ -74,6 +76,8 @@ router.post('/register', async (req, res) => {
 // Đăng nhập
 router.post('/login', async (req, res) => {
 	try {
+		await new Promise((resolve) => setTimeout(resolve, 4000));
+
 		let {email, password} = req.body;
 		email = email.trim();
 		password = password.trim();
