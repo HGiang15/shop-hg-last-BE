@@ -25,6 +25,26 @@ transporter.verify((error, success) => {
 	}
 });
 
+const sendOTPVerificationEmail = async ({_id, email}, otp) => {
+	const mailOptions = {
+		from: process.env.AUTH_EMAIL,
+		to: email,
+		subject: 'Xác minh Email của bạn',
+		html: `<p>Nhập mã OTP này để xác minh địa chỉ email của bạn: <b>${otp}</b></p><p>Mã OTP này sẽ hết hạn sau <b>1 giờ</b></p>`,
+	};
+
+	try {
+		await transporter.sendMail(mailOptions);
+		console.log(`OTP đã được gửi đến ${email}`);
+		return true;
+	} catch (error) {
+		console.error('Lỗi gửi email OTP:', error);
+		await User.deleteOne({_id});
+		await OTPVerification.deleteOne({userId: _id});
+		throw new Error('Lỗi gửi email OTP.');
+	}
+};
+
 const generateToken = (user) =>
 	jwt.sign({id: user._id, email: user.email, role: user.role}, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRES_IN});
 
@@ -77,26 +97,7 @@ router.post('/register', async (req, res) => {
 	}
 });
 
-const sendOTPVerificationEmail = async ({_id, email}, otp) => {
-	const mailOptions = {
-		from: process.env.AUTH_EMAIL,
-		to: email,
-		subject: 'Xác minh Email của bạn',
-		html: `<p>Nhập mã OTP này để xác minh địa chỉ email của bạn: <b>${otp}</b></p><p>Mã OTP này sẽ hết hạn sau <b>1 giờ</b></p>`,
-	};
-
-	try {
-		await transporter.sendMail(mailOptions);
-		console.log(`OTP đã được gửi đến ${email}`);
-		return true;
-	} catch (error) {
-		console.error('Lỗi gửi email OTP:', error);
-		await User.deleteOne({_id});
-		await OTPVerification.deleteOne({userId: _id});
-		throw new Error('Lỗi gửi email OTP.');
-	}
-};
-
+// VerifyOTP
 router.post('/verifyOTP', async (req, res) => {
 	try {
 		const {userId, otp} = req.body;
@@ -133,6 +134,7 @@ router.post('/verifyOTP', async (req, res) => {
 	}
 });
 
+// Login
 router.post('/login', async (req, res) => {
 	try {
 		const {email, password} = req.body;
