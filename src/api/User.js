@@ -25,12 +25,12 @@ transporter.verify((error, success) => {
 	}
 });
 
-const sendOTPVerificationEmail = async ({_id, email}, otp) => {
+const sendOTPVerificationEmail = async ({_id, email}, otp, subject, html) => {
 	const mailOptions = {
 		from: process.env.AUTH_EMAIL,
 		to: email,
-		subject: 'Xác minh Email của bạn',
-		html: `<p>Nhập mã OTP này để xác minh địa chỉ email của bạn: <b>${otp}</b></p><p>Mã OTP này sẽ hết hạn sau <b>1 giờ</b></p>`,
+		subject: subject,
+		html: html,
 	};
 
 	try {
@@ -166,6 +166,71 @@ router.post('/login', async (req, res) => {
 	} catch (error) {
 		console.error('Lỗi đăng nhập:', error);
 		res.status(500).json({status: 'Thất bại', message: 'Lỗi đăng nhập.'});
+	}
+});
+
+// Forgot password
+router.post('/forgotPassword', async (req, res) => {
+	try {
+		const {email} = req.body;
+
+		if (!email) {
+			return res.status(400).json({status: 'Thất bại', message: 'Vui lòng nhập email.'});
+		}
+
+		const user = await User.findOne({email});
+		if (!user) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy tài khoản với email này.'});
+		}
+
+		const otp = generateOTP();
+		await OTPVerification.findOneAndUpdate({userId: user._id}, {otp}, {upsert: true});
+
+		await sendOTPVerificationEmail(
+			user,
+			otp,
+			'Đặt lại mật khẩu của bạn',
+			`<p>Nhập mã OTP này để đặt lại mật khẩu của bạn: <b>${otp}</b></p><p>Mã OTP này sẽ hết hạn sau <b>1 giờ</b></p>`
+		);
+
+		res.status(200).json({status: 'Thành công', message: 'Mã OTP đã được gửi đến email của bạn.'});
+	} catch (error) {
+		console.error('Lỗi quên mật khẩu:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi quên mật khẩu.'});
+	}
+});
+
+// Reset password
+router.post('/resetPassword', async (req, res) => {
+	try {
+		const {email, otp, newPassword} = req.body;
+
+		if (!email || !otp || !newPassword) {
+			return res.status(400).json({status: 'Thất bại', message: 'Vui lòng nhập email, OTP và mật khẩu mới.'});
+		}
+
+		const user = await User.findOne({email});
+		if (!user) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy tài khoản với email này.'});
+		}
+
+		const otpVerificationRecord = await OTPVerification.findOne({userId: user._id});
+		if (!otpVerificationRecord) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy bản ghi OTP.'});
+		}
+
+		if (otp !== otpVerificationRecord.otp) {
+			return res.status(400).json({status: 'Thất bại', message: 'OTP không hợp lệ.'});
+		}
+
+		const hashedPassword = await bcrypt.hash(newPassword, 10);
+		await User.updateOne({_id: user._id}, {password: hashedPassword});
+		await OTPVerification.deleteOne({userId: user._id});
+
+		res.status(200).json({status: 'Thành công', message: 'Mật khẩu đã được đặt lại thành công!'});
+	} catch (error) {
+		console.error('Lỗi đặt lại mật khẩu:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi đặt lại mật khẩu.'});
 	}
 });
 
