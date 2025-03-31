@@ -37,6 +37,9 @@ const UserSchema = new Schema(
 			minlength: 6,
 		},
 		role: {type: Number, enum: [0, 1], default: 1},
+		verified: {
+			type: Boolean,
+		},
 	},
 	{timeseries: true, versionKey: false}
 );

@@ -27,11 +27,11 @@ app.use(cors());
 app.use(morgan('combined'));
 
 // Phân tích JSON bodies
-// app.use(express.json());
+app.use(express.json());
 
 // For accepting post form data
-const bodyParser = require('express').json;
-app.use(bodyParser());
+// const bodyParser = require('express').json;
+// app.use(bodyParser());
 
 // Route login, register cho User
 app.use('/user', UserRouter);

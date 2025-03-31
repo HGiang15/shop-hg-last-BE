@@ -2,51 +2,55 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const express = require('express');
 const router = express.Router();
-const User = require('./../app/models/User');
 const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer');
+const User = require('./../app/models/User');
+const OTPVerification = require('./../app/models/OTPVerification');
 
-const generateToken = (user) => {
-	return jwt.sign({id: user._id, email: user.email, role: user.role}, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRES_IN});
-};
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-// Đăng ký tài khoản
+const transporter = nodemailer.createTransport({
+	service: 'gmail',
+	auth: {
+		user: process.env.AUTH_EMAIL,
+		pass: process.env.AUTH_PASS,
+	},
+});
+
+transporter.verify((error, success) => {
+	if (error) {
+		console.error('Lỗi xác minh transporter:', error);
+	} else {
+		console.log('Transporter sẵn sàng gửi email:', success);
+	}
+});
+
+const generateToken = (user) =>
+	jwt.sign({id: user._id, email: user.email, role: user.role}, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRES_IN});
+
+// Register
 router.post('/register', async (req, res) => {
 	try {
-		await new Promise((resolve) => setTimeout(resolve, 4000));
-
-		let {name, email, phone, dateOfBirth, gender, password, role} = req.body;
-		name = name.trim();
-		email = email.trim();
-		phone = phone.trim();
-		dateOfBirth = dateOfBirth.trim();
-		gender = gender.trim();
-		password = password.trim();
+		const {name, email, phone, dateOfBirth, gender, password, role = 1} = req.body;
 
 		if (!name || !email || !dateOfBirth || !gender || !password) {
 			return res.status(400).json({status: 'Thất bại', message: 'Vui lòng không để trống bất kỳ trường nào.'});
 		}
-		// if (!/^[a-zA-Z ]*$/.test(name)) {
-		// 	return res.status(400).json({status: 'Thất bại', message: 'Tên không hợp lệ. Chỉ được chứa chữ cái và khoảng trắng.'});
-		// }
+
 		if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
-			return res.status(400).json({status: 'Thất bại', message: 'Email không hợp lệ. Vui lòng nhập đúng định dạng.'});
+			return res.status(400).json({status: 'Thất bại', message: 'Email không hợp lệ.'});
 		}
 		if (!/^\d{10,15}$/.test(phone)) {
-			return res.status(400).json({status: 'Thất bại', message: 'Số điện thoại không hợp lệ. Phải có từ 10 đến 15 chữ số.'});
+			return res.status(400).json({status: 'Thất bại', message: 'Số điện thoại không hợp lệ.'});
 		}
 		if (!new Date(dateOfBirth).getTime()) {
-			return res.status(400).json({status: 'Thất bại', message: 'Ngày sinh không hợp lệ. Vui lòng nhập đúng định dạng.'});
+			return res.status(400).json({status: 'Thất bại', message: 'Ngày sinh không hợp lệ.'});
 		}
 		if (!['Male', 'Female', 'Other'].includes(gender)) {
-			return res
-				.status(400)
-				.json({status: 'Thất bại', message: 'Giới tính không hợp lệ. Chỉ chấp nhận "Male", "Female" hoặc "Other".'});
+			return res.status(400).json({status: 'Thất bại', message: 'Giới tính không hợp lệ.'});
 		}
 		if (password.length < 6) {
-			return res.status(400).json({status: 'Thất bại', message: 'Mật khẩu quá ngắn. Vui lòng nhập hơn 6 ký tự!'});
-		}
-		if (![0, 1].includes(role)) {
-			role = 1; // Nếu không hợp lệ, đặt mặc định là user
+			return res.status(400).json({status: 'Thất bại', message: 'Mật khẩu quá ngắn.'});
 		}
 
 		const existingUser = await User.findOne({email});
@@ -55,32 +59,83 @@ router.post('/register', async (req, res) => {
 		}
 
 		const hashedPassword = await bcrypt.hash(password, 10);
+		const savedUser = await new User({name, email, phone, dateOfBirth, gender, password: hashedPassword, role, verified: false}).save();
 
-		const newUser = new User({name, email, phone, dateOfBirth, gender, password: hashedPassword, role});
-		const savedUser = await newUser.save();
+		const otp = generateOTP();
+		await new OTPVerification({userId: savedUser._id, otp}).save();
 
-		// Tạo token cho user mới
-		const token = generateToken(savedUser);
+		await sendOTPVerificationEmail(savedUser, otp);
 
 		res.status(201).json({
-			status: 'Thành công',
-			message: 'Đăng ký tài khoản thành công!',
-			data: {id: savedUser._id, name, phone, dateOfBirth, gender, email, password: hashedPassword, role},
-			token,
+			status: 'Đang chờ xác minh',
+			message: 'Mã OTP đã được gửi đến email của bạn để xác minh.',
+			data: {userId: savedUser._id, email: savedUser.email},
 		});
 	} catch (error) {
-		res.status(500).json({status: 'Thất bại', message: 'Đã xảy ra lỗi khi đăng ký tài khoản. Vui lòng thử lại sau!'});
+		console.error('Lỗi đăng ký:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi đăng ký.'});
 	}
 });
 
-// Đăng nhập
+const sendOTPVerificationEmail = async ({_id, email}, otp) => {
+	const mailOptions = {
+		from: process.env.AUTH_EMAIL,
+		to: email,
+		subject: 'Xác minh Email của bạn',
+		html: `<p>Nhập mã OTP này để xác minh địa chỉ email của bạn: <b>${otp}</b></p><p>Mã OTP này sẽ hết hạn sau <b>1 giờ</b></p>`,
+	};
+
+	try {
+		await transporter.sendMail(mailOptions);
+		console.log(`OTP đã được gửi đến ${email}`);
+		return true;
+	} catch (error) {
+		console.error('Lỗi gửi email OTP:', error);
+		await User.deleteOne({_id});
+		await OTPVerification.deleteOne({userId: _id});
+		throw new Error('Lỗi gửi email OTP.');
+	}
+};
+
+router.post('/verifyOTP', async (req, res) => {
+	try {
+		const {userId, otp} = req.body;
+
+		if (!userId || !otp) {
+			return res.status(400).json({status: 'Thất bại', message: 'Thiếu ID người dùng hoặc OTP.'});
+		}
+
+		const otpVerificationRecord = await OTPVerification.findOne({userId});
+
+		if (!otpVerificationRecord) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy bản ghi OTP.'});
+		}
+
+		if (otp === otpVerificationRecord.otp) {
+			await User.updateOne({_id: userId}, {verified: true});
+			await OTPVerification.deleteOne({userId});
+
+			const user = await User.findById(userId);
+			const token = generateToken(user);
+
+			res.status(200).json({
+				status: 'Thành công',
+				message: 'Email đã được xác minh thành công!',
+				token,
+				data: {id: user._id, name: user.name, email: user.email, role: user.role},
+			});
+		} else {
+			res.status(400).json({status: 'Thất bại', message: 'OTP không hợp lệ.'});
+		}
+	} catch (error) {
+		console.error('Lỗi xác minh OTP:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi xác minh OTP.'});
+	}
+});
+
 router.post('/login', async (req, res) => {
 	try {
-		await new Promise((resolve) => setTimeout(resolve, 4000));
-
-		let {email, password} = req.body;
-		email = email.trim();
-		password = password.trim();
+		const {email, password} = req.body;
 
 		if (!email || !password) {
 			return res.status(400).json({status: 'Thất bại', message: 'Vui lòng không để trống email hoặc mật khẩu.'});
@@ -91,14 +146,15 @@ router.post('/login', async (req, res) => {
 			return res.status(401).json({status: 'Thất bại', message: 'Email hoặc mật khẩu không chính xác!'});
 		}
 
-		const isPasswordMatch = await bcrypt.compare(password, user.password);
-		if (!isPasswordMatch) {
-			return res.status(401).json({status: 'Thất bại', message: 'Mật khẩu không chính xác. Vui lòng thử lại!'});
+		if (!(await bcrypt.compare(password, user.password))) {
+			return res.status(401).json({status: 'Thất bại', message: 'Mật khẩu không chính xác.'});
 		}
 
-		// Tạo token
-		const token = generateToken(user);
+		if (!user.verified) {
+			return res.status(401).json({status: 'Thất bại', message: 'Email chưa được xác minh.'});
+		}
 
+		const token = generateToken(user);
 		res.status(200).json({
 			status: 'Thành công',
 			message: 'Đăng nhập thành công!',
@@ -106,7 +162,8 @@ router.post('/login', async (req, res) => {
 			token,
 		});
 	} catch (error) {
-		res.status(500).json({status: 'Thất bại', message: 'Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại sau!'});
+		console.error('Lỗi đăng nhập:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi đăng nhập.'});
 	}
 });
 
