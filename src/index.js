@@ -4,7 +4,7 @@ const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
 const db = require('./config/db');
-const UserRouter = require('./api/User');
+const route = require('./routes');
 
 // Kết nối DB
 db.connect();
@@ -29,12 +29,7 @@ app.use(morgan('combined'));
 // Phân tích JSON bodies
 app.use(express.json());
 
-// For accepting post form data
-// const bodyParser = require('express').json;
-// app.use(bodyParser());
-
-// Route login, register cho User
-app.use('/user', UserRouter);
+route(app); // router all
 
 app.listen(port, () => {
 	console.log(`Server running on port ${port}`);
