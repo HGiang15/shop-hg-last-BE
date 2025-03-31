@@ -7,6 +7,10 @@ const nodemailer = require('nodemailer');
 const User = require('./../app/models/User');
 const OTPVerification = require('./../app/models/OTPVerification');
 
+const generateToken = (user) => {
+	jwt.sign({id: user._id, email: user.email, role: user.role}, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRES_IN});
+};
+
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const transporter = nodemailer.createTransport({
@@ -44,9 +48,6 @@ const sendOTPVerificationEmail = async ({_id, email}, otp, subject, html) => {
 		throw new Error('Lỗi gửi email OTP.');
 	}
 };
-
-const generateToken = (user) =>
-	jwt.sign({id: user._id, email: user.email, role: user.role}, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRES_IN});
 
 // Register
 router.post('/register', async (req, res) => {
