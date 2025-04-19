@@ -115,6 +115,9 @@ exports.login = async (req, res) => {
 			return res.status(401).json({status: 'Thất bại', message: 'Email chưa được xác minh.'});
 		}
 
+		// độ trễ 3 giây (3000 milliseconds)
+		await new Promise((resolve) => setTimeout(resolve, 6000));
+
 		const token = generateToken(user);
 		res.status(200).json({
 			status: 'Thành công',
