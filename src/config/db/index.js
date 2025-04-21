@@ -6,7 +6,7 @@ async function connect() {
 
 	if (!uri) {
 		console.error('❌ Missing MONGODB_URI in .env file');
-		process.exit(1); // Dừng chương trình nếu không có URI
+		process.exit(1);
 	}
 
 	try {

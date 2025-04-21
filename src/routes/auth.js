@@ -4,7 +4,7 @@ const authController = require('./../app/controllers/AuthController');
 
 /**
  * @swagger
- * /user/login:
+ * /api/user/login:
  *   post:
  *     summary: Đăng nhập người dùng
  *     tags:
@@ -33,7 +33,7 @@ router.post('/login', authController.login);
 
 /**
  * @swagger
- * /user/register:
+ * /api/user/register:
  *   post:
  *     summary: Đăng ký người dùng
  *     tags:
@@ -79,7 +79,7 @@ router.post('/register', authController.register);
 
 /**
  * @swagger
- * /user/verifyOTP:
+ * /api/user/verifyOTP:
  *   post:
  *     summary: Xác minh mã OTP
  *     tags:
@@ -108,7 +108,7 @@ router.post('/verifyOTP', authController.verifyOTP);
 
 /**
  * @swagger
- * /user/forgotPassword:
+ * /api/user/forgotPassword:
  *   post:
  *     summary: Quên mật khẩu - Gửi OTP đến email
  *     tags:
@@ -134,7 +134,7 @@ router.post('/forgotPassword', authController.forgotPassword);
 
 /**
  * @swagger
- * /user/resetPassword:
+ * /api/user/resetPassword:
  *   post:
  *     summary: Đặt lại mật khẩu bằng OTP
  *     tags:
