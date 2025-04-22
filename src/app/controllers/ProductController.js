@@ -5,27 +5,8 @@ const BASE_URL = 'http://localhost:3003/uploads/';
 
 // Create
 exports.createProduct = async (req, res) => {
-	// try {
-	// 	const {name, category, colors, images, quantityBySize, price, description, detailDescription} = req.body;
-
-	// 	const newProduct = new Product({
-	// 		name,
-	// 		category,
-	// 		colors,
-	// 		images,
-	// 		quantityBySize,
-	// 		price,
-	// 		description,
-	// 		detailDescription,
-	// 	});
-
-	// 	await newProduct.save();
-	// 	res.status(201).json({message: 'Tạo sản phẩm thành công', product: newProduct});
-	// } catch (error) {
-	// 	res.status(500).json({message: 'Lỗi khi tạo sản phẩm', error});
-	// }
 	try {
-		const {name, category, colors, quantityBySize, price, description, detailDescription} = req.body;
+		const {code, name, category, colors, quantityBySize, price, description, detailDescription} = req.body;
 
 		// Chuyển đổi quantityBySize từ string sang number
 		let convertedQuantityBySize = {};
@@ -39,6 +20,7 @@ exports.createProduct = async (req, res) => {
 		const images = req.files?.map((file) => file.filename) || [];
 
 		const product = new Product({
+			code,
 			name,
 			category,
 			colors,
@@ -53,7 +35,10 @@ exports.createProduct = async (req, res) => {
 
 		res.status(201).json({
 			message: 'Tạo sản phẩm thành công',
-			data: product,
+			data: {
+				...product.toObject(), // Convert to plain object to include uuid
+				images: product.images.map((img) => BASE_URL + img), // Include full image URLs
+			},
 		});
 	} catch (error) {
 		console.error(error);
@@ -63,21 +48,18 @@ exports.createProduct = async (req, res) => {
 
 // Get all
 exports.getAllProduct = async (req, res) => {
-	// try {
-	// 	const product = await Product.find({});
-	// 	res.status(200).json(product);
-	// } catch (error) {
-	// 	res.status(500).json({message: error.message});
-	// }
-
 	try {
 		let products = await Product.find({});
 
 		// Thêm đường dẫn đầy đủ cho ảnh
-		products = products.map((product) => ({
-			...product.toObject(),
-			images: product.images.map((img) => BASE_URL + img),
-		}));
+		products = products.map((product) => {
+			const productObject = product.toObject();
+			return {
+				...productObject,
+				images: productObject.images.map((img) => BASE_URL + img),
+				uuid: productObject.uuid, // Include uuid in the response
+			};
+		});
 
 		res.status(200).json(products);
 	} catch (error) {
@@ -103,7 +85,7 @@ exports.getProductById = async (req, res) => {
 exports.updateProduct = async (req, res) => {
 	try {
 		const {id} = req.params;
-		const {name, category, colors, quantityBySize, price, description, detailDescription} = req.body;
+		const {code, name, category, colors, quantityBySize, price, description, detailDescription} = req.body;
 
 		// Chuyển đổi quantityBySize từ string sang number
 		let convertedQuantityBySize = {};
@@ -118,6 +100,7 @@ exports.updateProduct = async (req, res) => {
 
 		// Tạo đối tượng dữ liệu cần cập nhật
 		const updateData = {
+			code,
 			name,
 			category,
 			colors,
