@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('./../app/controllers/ProductController');
+const upload = require('./../middleware/upload');
 
 /**
  * @swagger
@@ -17,21 +18,51 @@ const productController = require('./../app/controllers/ProductController');
  *             properties:
  *               name:
  *                 type: string
- *               quantity:
+ *                 example: Áo Hoodie 2025
+ *               category:
  *                 type: string
+ *                 example: Áo khoác
+ *               colors:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Đen", "Trắng", "Xanh"]
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["image1.jpg", "image2.jpg"]
+ *               quantityBySize:
+ *                 type: object
+ *                 additionalProperties:
+ *                   type: integer
+ *                 example:
+ *                   S: 10
+ *                   M: 15
+ *                   L: 20
+ *                   XL: 10
+ *                   XXL: 5
+ *                   XXXL: 2
  *               price:
  *                 type: number
- *               image:
- *                 type: string
+ *                 example: 499000
  *               description:
  *                 type: string
+ *                 example: Áo hoodie form rộng, thời trang
  *               detailDescription:
  *                 type: string
+ *                 example: Chất liệu nỉ bông mềm mịn, phù hợp thời tiết se lạnh
  *     responses:
  *       201:
  *         description: Tạo thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       500:
+ *         description: Lỗi server
  */
-router.post('/createProduct', productController.createProduct);
+
+// router.post('/createProduct', productController.createProduct);
+router.post('/createProduct', upload.array('images', 6), productController.createProduct);
 
 /**
  * @swagger
@@ -42,6 +73,8 @@ router.post('/createProduct', productController.createProduct);
  *     responses:
  *       200:
  *         description: Thành công
+ *       500:
+ *         description: Lỗi server
  */
 router.get('/getAllProduct', productController.getAllProduct);
 
@@ -63,6 +96,8 @@ router.get('/getAllProduct', productController.getAllProduct);
  *         description: Thành công
  *       404:
  *         description: Không tìm thấy sản phẩm
+ *       500:
+ *         description: Lỗi server
  */
 router.get('/getProductById/:id', productController.getProductById);
 
@@ -88,21 +123,47 @@ router.get('/getProductById/:id', productController.getProductById);
  *             properties:
  *               name:
  *                 type: string
- *               quantity:
+ *                 example: Áo Hoodie 2025
+ *               category:
  *                 type: string
+ *                 example: Áo khoác
+ *               colors:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Đen", "Trắng", "Xanh"]
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["image1.jpg", "image2.jpg"]
+ *               quantityBySize:
+ *                 type: object
+ *                 additionalProperties:
+ *                   type: integer
+ *                 example:
+ *                   S: 10
+ *                   M: 15
+ *                   L: 20
+ *                   XL: 10
+ *                   XXL: 5
+ *                   XXXL: 2
  *               price:
  *                 type: number
- *               image:
- *                 type: string
+ *                 example: 499000
  *               description:
  *                 type: string
+ *                 example: Áo hoodie form rộng, thời trang
  *               detailDescription:
  *                 type: string
+ *                 example: Chất liệu nỉ bông mềm mịn, phù hợp thời tiết se lạnh
  *     responses:
  *       200:
  *         description: Cập nhật thành công
  *       404:
  *         description: Không tìm thấy sản phẩm
+ *       500:
+ *         description: Lỗi server
  */
 router.put('/updateProduct/:id', productController.updateProduct);
 
@@ -124,6 +185,8 @@ router.put('/updateProduct/:id', productController.updateProduct);
  *         description: Xóa thành công
  *       404:
  *         description: Không tìm thấy sản phẩm
+ *       500:
+ *         description: Lỗi server
  */
 router.delete('/deleteProduct/:id', productController.deleteProduct);
 
@@ -150,6 +213,8 @@ router.delete('/deleteProduct/:id', productController.deleteProduct);
  *         description: Xóa thành công
  *       400:
  *         description: Dữ liệu không hợp lệ
+ *       500:
+ *         description: Lỗi server
  */
 router.delete('/deleteMultipleProducts', productController.deleteMultipleProducts);
 

@@ -7,18 +7,27 @@ const ProductSchema = new Schema(
 			type: String,
 			required: [true, 'Please enter product name'],
 		},
-		quantity: {
+		category: {
 			type: String,
+			required: [true, 'Please enter product category'],
+		},
+		colors: {
+			type: [String],
+			default: [],
+		},
+		images: {
+			type: [String],
+			validate: [(arr) => arr.length <= 6, '{PATH} exceeds the limit of 6'],
+			default: [],
+		},
+		quantityBySize: {
+			type: Object,
 			required: true,
 		},
 		price: {
 			type: Number,
 			required: true,
 			default: 0,
-		},
-		image: {
-			type: String,
-			required: false,
 		},
 		description: {
 			type: String,

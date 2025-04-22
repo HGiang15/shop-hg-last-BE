@@ -10,10 +10,11 @@ async function connect() {
 	}
 
 	try {
-		await mongoose.connect(uri, {
-			useNewUrlParser: true,
-			useUnifiedTopology: true,
-		});
+		// await mongoose.connect(uri, {
+		// 	useNewUrlParser: true,
+		// 	useUnifiedTopology: true,
+		// });
+		await mongoose.connect(uri);
 		console.log('✅ Connected successfully');
 	} catch (error) {
 		console.error('❌ Connect failed:', error);
