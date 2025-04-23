@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
-const {v4: uuidv4} = require('uuid');
+// const {v4: uuidv4} = require('uuid');
 const ProductSchema = new Schema(
 	{
-		uuid: {
-			type: String,
-			default: uuidv4,
-			unique: true,
-			index: true,
-		},
+		// uuid: {
+		// 	type: String,
+		// 	default: uuidv4,
+		// 	unique: true,
+		// 	index: true,
+		// },
 		code: {
 			type: String,
 			required: [true, 'Please enter product id'],

@@ -6,17 +6,22 @@ const BASE_URL = 'http://localhost:3003/uploads/';
 // Create
 exports.createProduct = async (req, res) => {
 	try {
-		const {code, name, category, colors, quantityBySize, price, description, detailDescription} = req.body;
+		const {code, name, category, colors, price, description, detailDescription} = req.body;
+		const quantityBySizeString = req.body.quantityBySize;
+		let quantityBySize = {}; // Parse quantityBySize từ chuỗi JSON nếu nó tồn tại
 
-		// Chuyển đổi quantityBySize từ string sang number
-		let convertedQuantityBySize = {};
-		if (quantityBySize && typeof quantityBySize === 'object') {
-			Object.keys(quantityBySize).forEach((size) => {
-				convertedQuantityBySize[size] = Number(quantityBySize[size]);
-			});
+		if (quantityBySizeString) {
+			try {
+				quantityBySize = JSON.parse(quantityBySizeString); // Chuyển đổi giá trị sang Number sau khi parse
+				Object.keys(quantityBySize).forEach((size) => {
+					quantityBySize[size] = Number(quantityBySize[size]);
+				});
+			} catch (error) {
+				console.error('Lỗi parse quantityBySize:', error);
+				return res.status(400).json({message: 'Dữ liệu quantityBySize không hợp lệ'});
+			}
 		}
 
-		// Lấy danh sách tên file ảnh
 		const images = req.files?.map((file) => file.filename) || [];
 
 		const product = new Product({
@@ -24,7 +29,7 @@ exports.createProduct = async (req, res) => {
 			name,
 			category,
 			colors,
-			quantityBySize: convertedQuantityBySize,
+			quantityBySize: quantityBySize,
 			price,
 			images,
 			description,
@@ -36,7 +41,7 @@ exports.createProduct = async (req, res) => {
 		res.status(201).json({
 			message: 'Tạo sản phẩm thành công',
 			data: {
-				...product.toObject(), // Convert to plain object to include uuid
+				...product.toObject(), // Convert to plain object
 				images: product.images.map((img) => BASE_URL + img), // Include full image URLs
 			},
 		});
@@ -57,7 +62,6 @@ exports.getAllProduct = async (req, res) => {
 			return {
 				...productObject,
 				images: productObject.images.map((img) => BASE_URL + img),
-				uuid: productObject.uuid, // Include uuid in the response
 			};
 		});
 

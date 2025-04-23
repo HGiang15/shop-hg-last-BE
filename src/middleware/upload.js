@@ -2,14 +2,15 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const uploadDir = path.join(__dirname, '../../uploads');
+// Đường dẫn đến thư mục uploads bên trong src
+const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
 	fs.mkdirSync(uploadDir, {recursive: true});
 }
 
 const storage = multer.diskStorage({
 	destination: (req, file, cb) => {
-		cb(null, 'uploads/');
+		cb(null, uploadDir); // Lưu trực tiếp vào thư mục đã tạo trong src
 	},
 	filename: (req, file, cb) => {
 		const uniqueName = Date.now() + '-' + file.originalname;
