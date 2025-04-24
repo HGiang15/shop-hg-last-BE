@@ -165,7 +165,8 @@ router.get('/getProductById/:id', productController.getProductById);
  *       500:
  *         description: Lỗi server
  */
-router.put('/updateProduct/:id', productController.updateProduct);
+// router.put('/updateProduct/:id', productController.updateProduct);
+router.put('/updateProduct/:id', upload.array('images', 6), productController.updateProduct);
 
 /**
  * @swagger

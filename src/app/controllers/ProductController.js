@@ -89,46 +89,60 @@ exports.getProductById = async (req, res) => {
 exports.updateProduct = async (req, res) => {
 	try {
 		const {id} = req.params;
-		const {code, name, category, colors, quantityBySize, price, description, detailDescription} = req.body;
+		const {code, name, category, colors, quantityBySize, price, description, detailDescription, oldImages} = req.body;
 
-		// Chuyển đổi quantityBySize từ string sang number
+		// Lấy sản phẩm cũ từ DB
+		const existingProduct = await Product.findById(id);
+		if (!existingProduct) {
+			return res.status(404).json({message: 'Không tìm thấy sản phẩm để cập nhật'});
+		}
+
+		// Parse colors
+		let parsedColors = [];
+		if (Array.isArray(colors)) parsedColors = colors;
+		else if (typeof colors === 'string') parsedColors = [colors];
+
+		// Parse quantityBySize
 		let convertedQuantityBySize = {};
-		if (quantityBySize && typeof quantityBySize === 'object') {
-			Object.keys(quantityBySize).forEach((size) => {
-				convertedQuantityBySize[size] = Number(quantityBySize[size]);
+		if (quantityBySize) {
+			const parsed = typeof quantityBySize === 'string' ? JSON.parse(quantityBySize) : quantityBySize;
+			Object.keys(parsed).forEach((size) => {
+				convertedQuantityBySize[size] = Number(parsed[size]);
 			});
 		}
 
-		// Nếu có ảnh mới thì lấy tên file ảnh
-		const images = req.files?.map((file) => file.filename);
+		// Parse oldImages
+		let retainedImages = [];
+		if (oldImages) {
+			retainedImages = typeof oldImages === 'string' ? JSON.parse(oldImages) : oldImages;
+			retainedImages = retainedImages.map((img) => img.split('/').pop());
+		}
 
-		// Tạo đối tượng dữ liệu cần cập nhật
+		const newImages = req.files?.map((file) => file.filename) || [];
+
+		// Gộp ảnh cũ còn giữ lại + ảnh mới
+		const finalImages = [...retainedImages, ...newImages];
+
 		const updateData = {
 			code,
 			name,
 			category,
-			colors,
+			colors: parsedColors,
 			quantityBySize: convertedQuantityBySize,
 			price,
 			description,
 			detailDescription,
+			images: finalImages,
 		};
 
-		// Nếu có ảnh mới thì cập nhật lại
-		if (images && images.length > 0) {
-			updateData.images = images;
-		}
-
-		// Tìm và cập nhật sản phẩm theo ID
 		const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {new: true});
-
-		if (!updatedProduct) {
-			return res.status(404).json({message: 'Không tìm thấy sản phẩm để cập nhật'});
-		}
 
 		res.status(200).json({
 			message: 'Cập nhật sản phẩm thành công',
-			data: updatedProduct,
+			data: {
+				...updatedProduct.toObject(),
+				images: updatedProduct.images.map((img) => BASE_URL + img),
+			},
 		});
 	} catch (error) {
 		console.error(error);
