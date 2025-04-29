@@ -164,4 +164,23 @@ router.post('/forgotPassword', authController.forgotPassword);
  */
 router.post('/resetPassword', authController.resetPassword);
 
+/**
+ * @swagger
+ * /api/user/list:
+ *   get:
+ *     summary: Lấy danh sách tất cả người dùng
+ *     tags:
+ *       - Authentication
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách người dùng thành công
+ */
+router.get('/getListUser', authController.getListUser);
+
+// Đổi trạng thái người dùng
+router.put('/status/:id', authController.updateUserStatus);
+
+// Đổi vai trò người dùng
+router.put('/role/:id', authController.updateUserRole);
+
 module.exports = router;

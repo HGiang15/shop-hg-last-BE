@@ -40,6 +40,7 @@ const UserSchema = new Schema(
 		verified: {
 			type: Boolean,
 		},
+		status: {type: Number, enum: [0, 1], default: 1},
 	},
 	{timeseries: true, versionKey: false}
 );

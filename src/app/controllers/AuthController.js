@@ -115,7 +115,12 @@ exports.login = async (req, res) => {
 			return res.status(401).json({status: 'Thất bại', message: 'Email chưa được xác minh.'});
 		}
 
-		// độ trễ 3 giây (3000 milliseconds)
+		// Kiểm tra trạng thái tài khoản
+		if (user.status === 0) {
+			return res.status(403).json({status: 'Thất bại', message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'});
+		}
+
+		// độ trễ 6 giây
 		await new Promise((resolve) => setTimeout(resolve, 6000));
 
 		const token = generateToken(user);
@@ -191,5 +196,88 @@ exports.resetPassword = async (req, res) => {
 	} catch (error) {
 		console.error('Lỗi đặt lại mật khẩu:', error);
 		res.status(500).json({status: 'Thất bại', message: 'Lỗi đặt lại mật khẩu.'});
+	}
+};
+
+exports.getListUser = async (req, res) => {
+	try {
+		const users = await User.find().select('-password');
+
+		const mappedUsers = users.map((user) => ({
+			id: user._id,
+			name: user.name,
+			phone: user.phone,
+			email: user.email,
+			role: user.role === 0 ? 'Quản trị' : 'Người dùng', // Ánh xạ role đúng
+			status: user.status === 1 ? 'Đang hoạt động' : 'Không hoạt động', // Ánh xạ status đúng
+		}));
+
+		res.status(200).json({
+			status: 'Thành công',
+			data: mappedUsers,
+		});
+	} catch (error) {
+		console.error('Lỗi lấy danh sách người dùng:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi lấy danh sách người dùng.'});
+	}
+};
+
+// Update status user
+// Update role and status for user
+exports.updateUserStatus = async (req, res) => {
+	try {
+		const {id} = req.params;
+		const {status} = req.body;
+
+		const user = await User.findById(id);
+
+		if (!user) {
+			return res.status(404).json({message: 'Không tìm thấy người dùng'});
+		}
+
+		// Chỉ cập nhật status nếu có
+		if (status !== undefined) {
+			user.status = status === 1 ? 1 : 0; // Trạng thái 1 là 'Đang hoạt động', 0 là 'Không hoạt động'
+			await user.save();
+
+			res.status(200).json({message: 'Cập nhật trạng thái thành công'});
+		} else {
+			res.status(400).json({message: 'Thiếu thông tin trạng thái'});
+		}
+	} catch (error) {
+		console.error('Lỗi cập nhật trạng thái người dùng:', error);
+		res.status(500).json({message: 'Lỗi server'});
+	}
+};
+
+exports.updateUserRole = async (req, res) => {
+	try {
+		const {id} = req.params;
+		const {role} = req.body;
+
+		const user = await User.findById(id);
+
+		if (!user) {
+			return res.status(404).json({message: 'Không tìm thấy người dùng'});
+		}
+
+		// Xử lý role dạng text
+		if (role !== undefined) {
+			if (role === 'Quản trị') {
+				user.role = 0; // 0 là Admin (Quản trị)
+			} else if (role === 'Người dùng') {
+				user.role = 1; // 1 là User (Người dùng)
+			} else {
+				return res.status(400).json({message: 'Vai trò không hợp lệ. Vai trò phải là "Quản trị" hoặc "Người dùng".'});
+			}
+
+			await user.save();
+			res.status(200).json({message: 'Cập nhật vai trò thành công'});
+		} else {
+			res.status(400).json({message: 'Thiếu thông tin vai trò'});
+		}
+	} catch (error) {
+		console.error('Lỗi cập nhật vai trò người dùng:', error);
+		res.status(500).json({message: 'Lỗi server'});
 	}
 };
