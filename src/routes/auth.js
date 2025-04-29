@@ -183,4 +183,32 @@ router.put('/status/:id', authController.updateUserStatus);
 // Đổi vai trò người dùng
 router.put('/role/:id', authController.updateUserRole);
 
+// --- Google Login ---
+/**
+ * @swagger
+ * /api/user/google-login:
+ *   post:
+ *     summary: Đăng nhập bằng Google OAuth
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Google ID Token
+ *     responses:
+ *       200:
+ *         description: Đăng nhập thành công
+ *       400:
+ *         description: Token không hợp lệ
+ */
+router.post('/google-login', authController.googleLogin);
+
 module.exports = router;

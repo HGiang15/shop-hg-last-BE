@@ -5,6 +5,66 @@ const {generateToken} = require('./../../utils/jwt');
 const {generateOTP} = require('./../../utils/otp');
 const {sendOTPVerificationEmail} = require('./../../utils/email');
 
+const {OAuth2Client} = require('google-auth-library'); // Thêm dòng này
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID); // Lấy từ biến môi trường
+
+exports.googleLogin = async (req, res) => {
+	try {
+		const {token} = req.body;
+
+		if (!token) {
+			return res.status(400).json({status: 'Thất bại', message: 'Thiếu token Google.'});
+		}
+
+		// Verify token Google
+		const ticket = await client.verifyIdToken({
+			idToken: token,
+			audience: process.env.GOOGLE_CLIENT_ID,
+		});
+
+		const {email, name, picture} = ticket.getPayload();
+
+		if (!email) {
+			return res.status(400).json({status: 'Thất bại', message: 'Token không hợp lệ.'});
+		}
+
+		// Tìm hoặc tạo user mới
+		let user = await User.findOne({email});
+		if (!user) {
+			user = await new User({
+				name,
+				email,
+				phone: '---',
+				dateOfBirth: new Date(),
+				gender: 'Other',
+				password: await bcrypt.hash(Date.now().toString(), 10),
+				verified: true,
+				role: 1,
+				avatar: picture,
+				provider: 'google',
+				googleId: ticket.getPayload().sub,
+			}).save();
+		}
+
+		// Kiểm tra trạng thái tài khoản
+		if (user.status === 0) {
+			return res.status(403).json({status: 'Thất bại', message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'});
+		}
+
+		const jwtToken = generateToken(user);
+
+		res.status(200).json({
+			status: 'Thành công',
+			message: 'Đăng nhập Google thành công!',
+			data: {id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar},
+			token: jwtToken,
+		});
+	} catch (error) {
+		console.error('Lỗi đăng nhập Google:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi đăng nhập Google.'});
+	}
+};
+
 exports.register = async (req, res) => {
 	try {
 		const {name, email, phone, dateOfBirth, gender, password, role = 1} = req.body;
@@ -35,7 +95,18 @@ exports.register = async (req, res) => {
 		}
 
 		const hashedPassword = await bcrypt.hash(password, 10);
-		const savedUser = await new User({name, email, phone, dateOfBirth, gender, password: hashedPassword, role, verified: false}).save();
+		const savedUser = await new User({
+			name,
+			email,
+			phone,
+			dateOfBirth,
+			gender,
+			password: hashedPassword,
+			avatar: '',
+			role,
+			verified: false,
+			provider: 'local',
+		}).save();
 
 		const otp = generateOTP();
 		await new OTPVerification({userId: savedUser._id, otp}).save();
@@ -208,8 +279,8 @@ exports.getListUser = async (req, res) => {
 			name: user.name,
 			phone: user.phone,
 			email: user.email,
-			role: user.role === 0 ? 'Quản trị' : 'Người dùng', // Ánh xạ role đúng
-			status: user.status === 1 ? 'Đang hoạt động' : 'Không hoạt động', // Ánh xạ status đúng
+			role: user.role === 0 ? 'Quản trị' : 'Người dùng',
+			status: user.status === 1 ? 'Đang hoạt động' : 'Không hoạt động',
 		}));
 
 		res.status(200).json({
@@ -223,7 +294,6 @@ exports.getListUser = async (req, res) => {
 };
 
 // Update status user
-// Update role and status for user
 exports.updateUserStatus = async (req, res) => {
 	try {
 		const {id} = req.params;
@@ -235,7 +305,6 @@ exports.updateUserStatus = async (req, res) => {
 			return res.status(404).json({message: 'Không tìm thấy người dùng'});
 		}
 
-		// Chỉ cập nhật status nếu có
 		if (status !== undefined) {
 			user.status = status === 1 ? 1 : 0; // Trạng thái 1 là 'Đang hoạt động', 0 là 'Không hoạt động'
 			await user.save();
@@ -264,9 +333,9 @@ exports.updateUserRole = async (req, res) => {
 		// Xử lý role dạng text
 		if (role !== undefined) {
 			if (role === 'Quản trị') {
-				user.role = 0; // 0 là Admin (Quản trị)
+				user.role = 0;
 			} else if (role === 'Người dùng') {
-				user.role = 1; // 1 là User (Người dùng)
+				user.role = 1;
 			} else {
 				return res.status(400).json({message: 'Vai trò không hợp lệ. Vai trò phải là "Quản trị" hoặc "Người dùng".'});
 			}
