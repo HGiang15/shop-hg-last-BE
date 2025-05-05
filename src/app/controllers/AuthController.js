@@ -5,8 +5,8 @@ const {generateToken} = require('./../../utils/jwt');
 const {generateOTP} = require('./../../utils/otp');
 const {sendOTPVerificationEmail} = require('./../../utils/email');
 
-const {OAuth2Client} = require('google-auth-library'); // Thêm dòng này
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID); // Lấy từ biến môi trường
+const {OAuth2Client} = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 exports.googleLogin = async (req, res) => {
 	try {
@@ -293,7 +293,43 @@ exports.getListUser = async (req, res) => {
 	}
 };
 
-// Update status user
+exports.getUserById = async (req, res) => {
+	try {
+		const {id} = req.params;
+
+		const user = await User.findById(id).select('-password'); // Ẩn password
+		if (!user) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy người dùng.'});
+		}
+
+		res.status(200).json({status: 'Thành công', data: user});
+	} catch (error) {
+		console.error('Lỗi lấy người dùng theo ID:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi máy chủ.'});
+	}
+};
+
+exports.editUser = async (req, res) => {
+	try {
+		const {id} = req.params;
+		const updates = req.body;
+
+		// Không cho chỉnh sửa các trường bảo mật
+		delete updates.password;
+		delete updates.email;
+
+		const updatedUser = await User.findByIdAndUpdate(id, updates, {new: true}).select('-password');
+		if (!updatedUser) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy người dùng để cập nhật.'});
+		}
+
+		res.status(200).json({status: 'Thành công', message: 'Cập nhật người dùng thành công.', data: updatedUser});
+	} catch (error) {
+		console.error('Lỗi cập nhật người dùng:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi máy chủ.'});
+	}
+};
+
 exports.updateUserStatus = async (req, res) => {
 	try {
 		const {id} = req.params;

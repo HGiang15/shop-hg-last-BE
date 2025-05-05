@@ -177,10 +177,67 @@ router.post('/resetPassword', authController.resetPassword);
  */
 router.get('/getListUser', authController.getListUser);
 
-// Đổi trạng thái người dùng
+/**
+ * @swagger
+ * /api/user/getUserById/{id}:
+ *   get:
+ *     summary: Lấy thông tin người dùng theo ID
+ *     tags:
+ *       - Authentication
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID của người dùng
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *       404:
+ *         description: Không tìm thấy
+ */
+router.get('/getUserById/:id', authController.getUserById);
+
+/**
+ * @swagger
+ * /api/user/editUser/{id}:
+ *   put:
+ *     summary: Cập nhật thông tin người dùng
+ *     tags:
+ *       - Authentication
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *               gender:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *       404:
+ *         description: Không tìm thấy người dùng
+ */
+router.put('/editUser/:id', authController.editUser);
+
 router.put('/status/:id', authController.updateUserStatus);
 
-// Đổi vai trò người dùng
 router.put('/role/:id', authController.updateUserRole);
 
 // --- Google Login ---
