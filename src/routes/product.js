@@ -76,7 +76,7 @@ router.post('/createProduct', upload.array('images', 6), productController.creat
  *       500:
  *         description: Lỗi server
  */
-router.get('/getAllProduct', productController.getAllProduct);
+router.get('/getAllProducts', productController.getAllProducts);
 
 /**
  * @swagger

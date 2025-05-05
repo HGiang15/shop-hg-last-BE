@@ -52,7 +52,7 @@ exports.createProduct = async (req, res) => {
 };
 
 // Get all
-exports.getAllProduct = async (req, res) => {
+exports.getAllProducts = async (req, res) => {
 	try {
 		let products = await Product.find({});
 
