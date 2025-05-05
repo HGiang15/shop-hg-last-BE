@@ -219,4 +219,18 @@ router.delete('/deleteProduct/:id', productController.deleteProduct);
  */
 router.delete('/deleteMultipleProducts', productController.deleteMultipleProducts);
 
+/**
+ * @swagger
+ * /api/product/featuredProducts:
+ *   get:
+ *     summary: Lấy danh sách sản phẩm nổi bật
+ *     tags: [Product]
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *       500:
+ *         description: Lỗi server
+ */
+router.get('/featuredProducts', productController.getFeaturedProducts);
+
 module.exports = router;

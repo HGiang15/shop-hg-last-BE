@@ -6,7 +6,7 @@ const BASE_URL = 'http://localhost:3003/uploads/';
 // Create
 exports.createProduct = async (req, res) => {
 	try {
-		const {code, name, category, colors, price, description, detailDescription} = req.body;
+		const {code, name, category, colors, price, description, detailDescription, isFeatured} = req.body;
 		const quantityBySizeString = req.body.quantityBySize;
 		let quantityBySize = {}; // Parse quantityBySize từ chuỗi JSON nếu nó tồn tại
 
@@ -34,6 +34,7 @@ exports.createProduct = async (req, res) => {
 			images,
 			description,
 			detailDescription,
+			isFeatured: isFeatured === 'true' || isFeatured === true,
 		});
 
 		await product.save();
@@ -89,7 +90,7 @@ exports.getProductById = async (req, res) => {
 exports.updateProduct = async (req, res) => {
 	try {
 		const {id} = req.params;
-		const {code, name, category, colors, quantityBySize, price, description, detailDescription, oldImages} = req.body;
+		const {code, name, category, colors, quantityBySize, price, description, detailDescription, oldImages, isFeatured} = req.body;
 
 		// Lấy sản phẩm cũ từ DB
 		const existingProduct = await Product.findById(id);
@@ -133,6 +134,7 @@ exports.updateProduct = async (req, res) => {
 			description,
 			detailDescription,
 			images: finalImages,
+			isFeatured: isFeatured === 'true' || isFeatured === true,
 		};
 
 		const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {new: true});
@@ -182,6 +184,26 @@ exports.deleteMultipleProducts = async (req, res) => {
 			deletedCount: result.deletedCount,
 		});
 	} catch (error) {
+		res.status(500).json({message: error.message});
+	}
+};
+
+// Featured
+exports.getFeaturedProducts = async (req, res) => {
+	try {
+		let products = await Product.find({isFeatured: true});
+
+		products = products.map((product) => {
+			const obj = product.toObject();
+			return {
+				...obj,
+				images: obj.images.map((img) => BASE_URL + img),
+			};
+		});
+
+		res.status(200).json(products);
+	} catch (error) {
+		console.error(error);
 		res.status(500).json({message: error.message});
 	}
 };

@@ -48,6 +48,10 @@ const ProductSchema = new Schema(
 			type: String,
 			required: false,
 		},
+		isFeatured: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	{timestamps: true}
 );
