@@ -233,4 +233,39 @@ router.delete('/deleteMultipleProducts', productController.deleteMultipleProduct
  */
 router.get('/featuredProducts', productController.getFeaturedProducts);
 
+/**
+ * @swagger
+ * /api/product/filter:
+ *   get:
+ *     summary: Lọc sản phẩm theo nhiều tiêu chí
+ *     tags: [Product]
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema: { type: string }
+ *       - in: query
+ *         name: colors
+ *         schema: { type: string }
+ *         description: Dạng CSV, ví dụ: Đen,Trắng
+ *       - in: query
+ *         name: size
+ *         schema: { type: string }
+ *       - in: query
+ *         name: minPrice
+ *         schema: { type: number }
+ *       - in: query
+ *         name: maxPrice
+ *         schema: { type: number }
+ *       - in: query
+ *         name: isFeatured
+ *         schema: { type: boolean }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Thành công
+ */
+router.get('/filterProducts', productController.filterProducts);
+
 module.exports = router;

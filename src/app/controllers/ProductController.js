@@ -207,3 +207,56 @@ exports.getFeaturedProducts = async (req, res) => {
 		res.status(500).json({message: error.message});
 	}
 };
+
+// Filter Products
+exports.filterProducts = async (req, res) => {
+	try {
+		const {category, colors, minPrice, maxPrice, size, isFeatured, keyword, sortBy, sortOrder, page = 1, limit = 10} = req.query;
+
+		let filter = {};
+
+		if (category) filter.category = category;
+
+		if (colors) {
+			if (Array.isArray(colors)) {
+				filter.colors = {$in: colors};
+			} else if (typeof colors === 'string') {
+				filter.colors = {$in: colors.split(',')};
+			}
+		}
+
+		if (minPrice || maxPrice) {
+			filter.price = {};
+			if (minPrice) filter.price.$gte = Number(minPrice);
+			if (maxPrice) filter.price.$lte = Number(maxPrice);
+		}
+
+		if (size) filter[`quantityBySize.${size}`] = {$gt: 0};
+
+		if (isFeatured) filter.isFeatured = isFeatured === 'true';
+
+		if (keyword) {
+			const regex = new RegExp(keyword, 'i');
+			filter.$or = [{name: regex}, {code: regex}];
+		}
+
+		let sort = {};
+		if (sortBy === 'price' || sortBy === 'createdAt') {
+			sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+		}
+
+		const skip = (Number(page) - 1) * Number(limit);
+
+		const total = await Product.countDocuments(filter);
+		const products = await Product.find(filter).sort(sort).skip(skip).limit(Number(limit));
+
+		res.status(200).json({
+			total,
+			page: Number(page),
+			totalPages: Math.ceil(total / limit),
+			products,
+		});
+	} catch (error) {
+		res.status(500).json({error: error.message});
+	}
+};
