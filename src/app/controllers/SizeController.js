@@ -21,8 +21,24 @@ exports.createSize = async (req, res) => {
 // Read all
 exports.getAllSizes = async (req, res) => {
 	try {
-		const sizes = await Size.find({});
-		res.status(200).json(sizes);
+		const {page = 1, limit = 5} = req.query;
+
+		const pageNumber = parseInt(page, 10);
+		const limitNumber = parseInt(limit, 10);
+		const skip = (pageNumber - 1) * limitNumber;
+
+		const totalSizes = await Size.countDocuments();
+
+		const sizes = await Size.find({}).sort({createdAt: -1}).skip(skip).limit(limitNumber);
+
+		const totalPages = Math.ceil(totalSizes / limitNumber);
+
+		res.status(200).json({
+			sizes,
+			totalPages,
+			currentPage: pageNumber,
+			totalItems: totalSizes,
+		});
 	} catch (error) {
 		res.status(500).json({message: error.message});
 	}

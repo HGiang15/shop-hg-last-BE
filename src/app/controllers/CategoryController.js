@@ -30,14 +30,26 @@ exports.createCategory = async (req, res) => {
 // Get All
 exports.getAllCategories = async (req, res) => {
 	try {
-		const categories = await Category.find().sort({createdAt: -1});
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 5;
+		const skip = (page - 1) * limit;
+
+		const totalItems = await Category.countDocuments();
+		const totalPages = Math.ceil(totalItems / limit);
+
+		const categories = await Category.find().sort({createdAt: -1}).skip(skip).limit(limit);
 
 		const result = categories.map((c) => ({
 			...c.toObject(),
 			image: BASE_URL + c.image,
 		}));
 
-		res.status(200).json(result);
+		res.status(200).json({
+			categories: result,
+			currentPage: page,
+			totalPages,
+			totalItems,
+		});
 	} catch (err) {
 		res.status(500).json({message: err.message});
 	}
@@ -48,6 +60,24 @@ exports.getCategoryById = async (req, res) => {
 	try {
 		const category = await Category.findById(req.params.id);
 		if (!category) return res.status(404).json({message: 'Không tìm thấy danh mục'});
+
+		res.status(200).json({
+			...category.toObject(),
+			image: BASE_URL + category.image,
+		});
+	} catch (err) {
+		res.status(500).json({message: err.message});
+	}
+};
+
+exports.getCategoryByName = async (req, res) => {
+	try {
+		const {name} = req.params;
+
+		const category = await Category.findOne({name: name});
+		if (!category) {
+			return res.status(404).json({message: 'Không tìm thấy danh mục'});
+		}
 
 		res.status(200).json({
 			...category.toObject(),

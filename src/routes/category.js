@@ -126,4 +126,6 @@ router.put('/updateCategory/:id', upload.single('image'), categoryController.upd
  */
 router.delete('/deleteCategory/:id', categoryController.deleteCategory);
 
+router.get('/getCategoryByName/:name', categoryController.getCategoryByName);
+
 module.exports = router;

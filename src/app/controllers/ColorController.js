@@ -21,8 +21,26 @@ exports.createColor = async (req, res) => {
 // Read all
 exports.getAllColors = async (req, res) => {
 	try {
-		const colors = await Color.find({});
-		res.status(200).json(colors);
+		const {page = 1, limit = 10} = req.query;
+
+		const pageNumber = parseInt(page, 10);
+		const limitNumber = parseInt(limit, 10);
+		const skip = (pageNumber - 1) * limitNumber;
+
+		// Lấy tổng số lượng màu
+		const totalColors = await Color.countDocuments();
+
+		// Lấy danh sách màu có phân trang và sắp xếp
+		const colors = await Color.find({}).sort({createdAt: -1}).skip(skip).limit(limitNumber);
+
+		const totalPages = Math.ceil(totalColors / limitNumber);
+
+		res.status(200).json({
+			colors,
+			totalPages,
+			currentPage: pageNumber,
+			totalItems: totalColors,
+		});
 	} catch (error) {
 		res.status(500).json({message: error.message});
 	}

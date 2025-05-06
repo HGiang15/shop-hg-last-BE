@@ -55,10 +55,20 @@ exports.createProduct = async (req, res) => {
 // Get all
 exports.getAllProducts = async (req, res) => {
 	try {
-		let products = await Product.find({});
+		// Get page and limit from query parameters
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 5;
+		const skip = (page - 1) * limit;
 
-		// Thêm đường dẫn đầy đủ cho ảnh
-		products = products.map((product) => {
+		// Find products with pagination
+		const products = await Product.find({}).skip(skip).limit(limit);
+
+		// Get total product count for pagination
+		const totalItems = await Product.countDocuments({});
+		const totalPages = Math.ceil(totalItems / limit);
+
+		// Map products to include full image paths
+		const productsWithImages = products.map((product) => {
 			const productObject = product.toObject();
 			return {
 				...productObject,
@@ -66,12 +76,17 @@ exports.getAllProducts = async (req, res) => {
 			};
 		});
 
-		res.status(200).json(products);
+		// Send the response with pagination info including currentPage
+		res.status(200).json({
+			products: productsWithImages,
+			currentPage: page, // Thêm currentPage vào response
+			totalItems,
+			totalPages,
+		});
 	} catch (error) {
 		res.status(500).json({message: error.message});
 	}
 };
-
 // Get by id
 exports.getProductById = async (req, res) => {
 	try {
@@ -215,7 +230,16 @@ exports.filterProducts = async (req, res) => {
 
 		let filter = {};
 
-		if (category) filter.category = category;
+		// Xử lý lọc theo category (có thể là một ObjectId hoặc một mảng ObjectId)
+		if (category) {
+			if (Array.isArray(category)) {
+				filter.category = {$in: category};
+			} else if (typeof category === 'string' && category.includes(',')) {
+				filter.category = {$in: category.split(',')};
+			} else if (typeof category === 'string') {
+				filter.category = category;
+			}
+		}
 
 		if (colors) {
 			if (Array.isArray(colors)) {

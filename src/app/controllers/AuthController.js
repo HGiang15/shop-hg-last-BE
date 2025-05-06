@@ -272,7 +272,12 @@ exports.resetPassword = async (req, res) => {
 
 exports.getListUser = async (req, res) => {
 	try {
-		const users = await User.find().select('-password');
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 10;
+		const skip = (page - 1) * limit;
+
+		const totalUsers = await User.countDocuments();
+		const users = await User.find().skip(skip).limit(limit).select('-password');
 
 		const mappedUsers = users.map((user) => ({
 			id: user._id,
@@ -286,6 +291,11 @@ exports.getListUser = async (req, res) => {
 		res.status(200).json({
 			status: 'Thành công',
 			data: mappedUsers,
+			pagination: {
+				totalItems: totalUsers,
+				currentPage: page,
+				totalPages: Math.ceil(totalUsers / limit),
+			},
 		});
 	} catch (error) {
 		console.error('Lỗi lấy danh sách người dùng:', error);
