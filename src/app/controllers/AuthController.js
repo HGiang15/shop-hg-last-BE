@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const User = require('./../models/User');
+const Cart = require('./../models/Cart');
 const OTPVerification = require('./../models/OTPVerification');
 const {generateToken} = require('./../../utils/jwt');
 const {generateOTP} = require('./../../utils/otp');
@@ -191,10 +192,48 @@ exports.login = async (req, res) => {
 			return res.status(403).json({status: 'Thất bại', message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'});
 		}
 
-		// độ trễ 6 giây
-		await new Promise((resolve) => setTimeout(resolve, 6000));
+		// Độ trễ 3 giây
+		await new Promise((resolve) => setTimeout(resolve, 3000));
 
+		// 1. Lấy giỏ hàng của guest từ cookie
+		const cartToken = req.cookies.cartToken;
+		let guestCart = null;
+
+		if (cartToken) {
+			// Lấy giỏ hàng của guest từ cơ sở dữ liệu nếu có
+			guestCart = await Cart.findOne({cartToken}); // Giả sử bạn lưu giỏ hàng của khách bằng cartToken
+		}
+
+		// 2. Lấy giỏ hàng của người dùng đã đăng nhập
+		let userCart = await Cart.findOne({userId: user._id});
+
+		// 3. Nếu có giỏ hàng của khách, hợp nhất giỏ hàng
+		if (guestCart) {
+			// Nếu người dùng đã có giỏ hàng, hợp nhất
+			if (userCart) {
+				// Hợp nhất sản phẩm từ giỏ của khách vào giỏ của người dùng
+				userCart.items = [...userCart.items, ...guestCart.items];
+				// Loại bỏ trùng lặp (nếu cần)
+				userCart.items = userCart.items.reduce((uniqueItems, item) => {
+					if (!uniqueItems.some((existingItem) => existingItem.productId.toString() === item.productId.toString())) {
+						uniqueItems.push(item);
+					}
+					return uniqueItems;
+				}, []);
+				await userCart.save();
+			} else {
+				// Nếu người dùng chưa có giỏ hàng, tạo mới giỏ hàng
+				userCart = new Cart({userId: user._id, items: guestCart.items});
+				await userCart.save();
+			}
+
+			// 4. Xóa cartToken của khách (cookie)
+			res.clearCookie('cartToken');
+		}
+
+		// 5. Cập nhật token JWT cho người dùng
 		const token = generateToken(user);
+
 		res.status(200).json({
 			status: 'Thành công',
 			message: 'Đăng nhập thành công!',

@@ -7,29 +7,34 @@ const BASE_URL = 'http://localhost:3003/uploads/';
 exports.createProduct = async (req, res) => {
 	try {
 		const {code, name, category, colors, price, description, detailDescription, isFeatured} = req.body;
-		const quantityBySizeString = req.body.quantityBySize;
-		let quantityBySize = {}; // Parse quantityBySize từ chuỗi JSON nếu nó tồn tại
 
-		if (quantityBySizeString) {
-			try {
-				quantityBySize = JSON.parse(quantityBySizeString); // Chuyển đổi giá trị sang Number sau khi parse
-				Object.keys(quantityBySize).forEach((size) => {
-					quantityBySize[size] = Number(quantityBySize[size]);
-				});
-			} catch (error) {
-				console.error('Lỗi parse quantityBySize:', error);
-				return res.status(400).json({message: 'Dữ liệu quantityBySize không hợp lệ'});
-			}
+		const quantityBySizeString = req.body.quantityBySize;
+
+		let parsedCategory = {};
+		let parsedColors = [];
+		let parsedQuantityBySize = [];
+
+		try {
+			parsedCategory = typeof category === 'string' ? JSON.parse(category) : category;
+			parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors;
+			parsedQuantityBySize = typeof quantityBySizeString === 'string' ? JSON.parse(quantityBySizeString) : quantityBySizeString;
+		} catch (error) {
+			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ (category/colors/quantityBySize)'});
 		}
+
+		parsedQuantityBySize = parsedQuantityBySize.map((item) => ({
+			...item,
+			quantity: Number(item.quantity),
+		}));
 
 		const images = req.files?.map((file) => file.filename) || [];
 
 		const product = new Product({
 			code,
 			name,
-			category,
-			colors,
-			quantityBySize: quantityBySize,
+			category: parsedCategory,
+			colors: parsedColors,
+			quantityBySize: parsedQuantityBySize,
 			price,
 			images,
 			description,
@@ -42,8 +47,8 @@ exports.createProduct = async (req, res) => {
 		res.status(201).json({
 			message: 'Tạo sản phẩm thành công',
 			data: {
-				...product.toObject(), // Convert to plain object
-				images: product.images.map((img) => BASE_URL + img), // Include full image URLs
+				...product.toObject(),
+				images: product.images.map((img) => BASE_URL + img),
 			},
 		});
 	} catch (error) {
@@ -55,19 +60,14 @@ exports.createProduct = async (req, res) => {
 // Get all
 exports.getAllProducts = async (req, res) => {
 	try {
-		// Get page and limit from query parameters
 		const page = parseInt(req.query.page) || 1;
 		const limit = parseInt(req.query.limit) || 5;
 		const skip = (page - 1) * limit;
 
-		// Find products with pagination
 		const products = await Product.find({}).skip(skip).limit(limit);
-
-		// Get total product count for pagination
 		const totalItems = await Product.countDocuments({});
 		const totalPages = Math.ceil(totalItems / limit);
 
-		// Map products to include full image paths
 		const productsWithImages = products.map((product) => {
 			const productObject = product.toObject();
 			return {
@@ -76,10 +76,9 @@ exports.getAllProducts = async (req, res) => {
 			};
 		});
 
-		// Send the response with pagination info including currentPage
 		res.status(200).json({
 			products: productsWithImages,
-			currentPage: page, // Thêm currentPage vào response
+			currentPage: page,
 			totalItems,
 			totalPages,
 		});
@@ -87,7 +86,8 @@ exports.getAllProducts = async (req, res) => {
 		res.status(500).json({message: error.message});
 	}
 };
-// Get by id
+
+// Get by ID
 exports.getProductById = async (req, res) => {
 	try {
 		const {id} = req.params;
@@ -101,50 +101,48 @@ exports.getProductById = async (req, res) => {
 	}
 };
 
-// Update by id
+// Update
 exports.updateProduct = async (req, res) => {
 	try {
 		const {id} = req.params;
 		const {code, name, category, colors, quantityBySize, price, description, detailDescription, oldImages, isFeatured} = req.body;
 
-		// Lấy sản phẩm cũ từ DB
 		const existingProduct = await Product.findById(id);
 		if (!existingProduct) {
 			return res.status(404).json({message: 'Không tìm thấy sản phẩm để cập nhật'});
 		}
 
-		// Parse colors
+		let parsedCategory = {};
 		let parsedColors = [];
-		if (Array.isArray(colors)) parsedColors = colors;
-		else if (typeof colors === 'string') parsedColors = [colors];
+		let parsedQuantityBySize = [];
 
-		// Parse quantityBySize
-		let convertedQuantityBySize = {};
-		if (quantityBySize) {
-			const parsed = typeof quantityBySize === 'string' ? JSON.parse(quantityBySize) : quantityBySize;
-			Object.keys(parsed).forEach((size) => {
-				convertedQuantityBySize[size] = Number(parsed[size]);
-			});
+		try {
+			parsedCategory = typeof category === 'string' ? JSON.parse(category) : category;
+			parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors;
+			parsedQuantityBySize = typeof quantityBySize === 'string' ? JSON.parse(quantityBySize) : quantityBySize;
+		} catch (error) {
+			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ'});
 		}
 
-		// Parse oldImages
+		parsedQuantityBySize = parsedQuantityBySize.map((item) => ({
+			...item,
+			quantity: Number(item.quantity),
+		}));
+
 		let retainedImages = [];
 		if (oldImages) {
 			retainedImages = typeof oldImages === 'string' ? JSON.parse(oldImages) : oldImages;
 			retainedImages = retainedImages.map((img) => img.split('/').pop());
 		}
-
 		const newImages = req.files?.map((file) => file.filename) || [];
-
-		// Gộp ảnh cũ còn giữ lại + ảnh mới
 		const finalImages = [...retainedImages, ...newImages];
 
 		const updateData = {
 			code,
 			name,
-			category,
+			category: parsedCategory,
 			colors: parsedColors,
-			quantityBySize: convertedQuantityBySize,
+			quantityBySize: parsedQuantityBySize,
 			price,
 			description,
 			detailDescription,
@@ -223,30 +221,31 @@ exports.getFeaturedProducts = async (req, res) => {
 	}
 };
 
-// Filter Products
+// Filter
 exports.filterProducts = async (req, res) => {
 	try {
 		const {category, colors, minPrice, maxPrice, size, isFeatured, keyword, sortBy, sortOrder, page = 1, limit = 10} = req.query;
 
 		let filter = {};
 
-		// Xử lý lọc theo category (có thể là một ObjectId hoặc một mảng ObjectId)
 		if (category) {
-			if (Array.isArray(category)) {
-				filter.category = {$in: category};
-			} else if (typeof category === 'string' && category.includes(',')) {
-				filter.category = {$in: category.split(',')};
-			} else if (typeof category === 'string') {
-				filter.category = category;
-			}
+			const categoryArray = Array.isArray(category)
+				? category
+				: typeof category === 'string' && category.includes(',')
+				? category.split(',')
+				: [category];
+
+			filter['category.categoryId'] = {$in: categoryArray};
 		}
 
 		if (colors) {
-			if (Array.isArray(colors)) {
-				filter.colors = {$in: colors};
-			} else if (typeof colors === 'string') {
-				filter.colors = {$in: colors.split(',')};
-			}
+			const colorsArray = Array.isArray(colors)
+				? colors
+				: typeof colors === 'string' && colors.includes(',')
+				? colors.split(',')
+				: [colors];
+
+			filter['colors.colorId'] = {$in: colorsArray};
 		}
 
 		if (minPrice || maxPrice) {
@@ -255,7 +254,14 @@ exports.filterProducts = async (req, res) => {
 			if (maxPrice) filter.price.$lte = Number(maxPrice);
 		}
 
-		if (size) filter[`quantityBySize.${size}`] = {$gt: 0};
+		if (size) {
+			filter.quantityBySize = {
+				$elemMatch: {
+					sizeId: size,
+					quantity: {$gt: 0},
+				},
+			};
+		}
 
 		if (isFeatured) filter.isFeatured = isFeatured === 'true';
 
@@ -270,15 +276,22 @@ exports.filterProducts = async (req, res) => {
 		}
 
 		const skip = (Number(page) - 1) * Number(limit);
-
 		const total = await Product.countDocuments(filter);
 		const products = await Product.find(filter).sort(sort).skip(skip).limit(Number(limit));
+
+		const productsWithImages = products.map((product) => {
+			const obj = product.toObject();
+			return {
+				...obj,
+				images: obj.images.map((img) => BASE_URL + img),
+			};
+		});
 
 		res.status(200).json({
 			total,
 			page: Number(page),
 			totalPages: Math.ceil(total / limit),
-			products,
+			products: productsWithImages,
 		});
 	} catch (error) {
 		res.status(500).json({error: error.message});

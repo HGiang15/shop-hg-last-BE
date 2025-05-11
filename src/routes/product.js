@@ -246,7 +246,6 @@ router.get('/featuredProducts', productController.getFeaturedProducts);
  *       - in: query
  *         name: colors
  *         schema: { type: string }
- *         description: Dạng CSV, ví dụ: Đen,Trắng
  *       - in: query
  *         name: size
  *         schema: { type: string }

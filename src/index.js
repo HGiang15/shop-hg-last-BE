@@ -10,6 +10,7 @@ const db = require('./config/db');
 const route = require('./routes');
 const session = require('express-session');
 const passport = require('passport');
+const cookieParser = require('cookie-parser');
 require('./config/passport');
 
 // Kết nối DB
@@ -19,12 +20,20 @@ db.connect();
 const app = express();
 const port = 3003;
 
-// Swagger docs route
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// -----------------------------
+// ✅ CORS (cho phép FE gửi cookie)
+// -----------------------------
+app.use(
+	cors({
+		origin: 'http://localhost:3000', // domain frontend
+		credentials: true, // cho phép gửi cookie
+	})
+);
 
-// Trỏ public folder chứa ảnh
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+// -----------------------------
+// ✅ Cookie & Session Middleware
+// -----------------------------
+app.use(cookieParser());
 app.use(
 	session({
 		secret: 'secret',
@@ -33,20 +42,37 @@ app.use(
 	})
 );
 
-// Middleware
-app.use(
-	express.urlencoded({
-		extended: true,
-	})
-);
-app.use(cors());
-app.use(morgan('combined'));
+// -----------------------------
+// ✅ Body Parser Middleware
+// -----------------------------
 app.use(express.json());
+app.use(express.urlencoded({extended: true}));
+
+// -----------------------------
+// ✅ Passport Middleware
+// -----------------------------
 app.use(passport.initialize());
 app.use(passport.session());
 
-route(app); // router all
+// -----------------------------
+// ✅ Logging & Static files
+// -----------------------------
+app.use(morgan('combined'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// -----------------------------
+// ✅ Swagger Docs
+// -----------------------------
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// -----------------------------
+// ✅ Routes
+// -----------------------------
+route(app);
+
+// -----------------------------
+// ✅ Start server
+// -----------------------------
 app.listen(port, () => {
 	console.log(`Server running on port ${port}`);
 });
