@@ -2,6 +2,7 @@ const Cart = require('../models/Cart');
 const generateCartToken = require('../../utils/generateCartToken');
 const Color = require('../models/Color');
 const Size = require('../models/Size');
+const Product = require('../models/Product');
 
 exports.getAllCart = async (req, res) => {
 	const cartToken = req.cookies.cartToken;
@@ -56,15 +57,46 @@ exports.updateItem = async (req, res) => {
 	const {itemId, quantity} = req.body;
 	const identifier = req.user ? {userId: req.user.id} : {cartToken: req.cookies.cartToken};
 
+	if (quantity <= 0) {
+		return res.status(400).json({message: 'Số lượng phải lớn hơn 0'});
+	}
+
+	// Tìm giỏ hàng dựa trên userId hoặc cartToken
 	const cart = await Cart.findOne(identifier);
-	if (!cart) return res.status(404).json({message: 'Cart not found'});
+	if (!cart) return res.status(404).json({message: 'Giỏ hàng không tồn tại'});
 
+	// Tìm sản phẩm trong giỏ hàng
 	const item = cart.items.id(itemId);
-	if (!item) return res.status(404).json({message: 'Item not found'});
+	if (!item) return res.status(404).json({message: 'Món hàng không tìm thấy'});
 
+	// Cập nhật số lượng sản phẩm trong giỏ hàng
 	item.quantity = quantity;
 	await cart.save();
-	res.json(cart);
+
+	// Tính lại tổng tiền cho món hàng
+	const updatedItem = cart.items.id(itemId);
+	const product = await Product.findById(updatedItem.productId); // Lấy thông tin sản phẩm
+	const itemTotal = product.price * updatedItem.quantity; // Tổng tiền của món hàng
+
+	// Tính tổng tiền của giỏ hàng
+	const totalAmount = cart.items.reduce((sum, item) => {
+		const product = item.productId;
+		return sum + product.price * item.quantity;
+	}, 0);
+
+	// Trả về thông tin món hàng đã cập nhật và tổng tiền
+	res.json({
+		item: {
+			_id: updatedItem._id,
+			productId: updatedItem.productId,
+			quantity: updatedItem.quantity,
+			sizeId: updatedItem.sizeId,
+			sizeName: updatedItem.sizeName,
+			price: product.price,
+			totalAmount: itemTotal, // Tổng tiền của món hàng
+		},
+		cartTotal: totalAmount, // Tổng giỏ hàng
+	});
 };
 
 exports.removeItem = async (req, res) => {
@@ -79,49 +111,49 @@ exports.removeItem = async (req, res) => {
 	res.json(cart);
 };
 
+// Merge giỏ hàng từ khách và người dùng sau khi đăng nhập
 exports.mergeCart = async (req, res) => {
-	const userId = req.user.id;
-	const cartToken = req.cookies.cartToken;
-
-	if (!cartToken) {
-		return res.status(400).json({message: 'No guest cart to merge'});
-	}
+	const userId = req.user.id; // Lấy ID người dùng đã đăng nhập
+	const localItems = req.body.localItems || []; // Lấy giỏ hàng từ frontend (localItems)
 
 	try {
-		const guestCart = await Cart.findOne({cartToken});
+		// Tìm giỏ hàng của người dùng
 		let userCart = await Cart.findOne({userId});
 
-		// Nếu không có giỏ người dùng, tạo mới
+		// Nếu không có giỏ hàng của người dùng, tạo mới
 		if (!userCart) {
 			userCart = new Cart({userId, items: []});
 		}
 
-		if (guestCart) {
-			for (const guestItem of guestCart.items) {
-				const existing = userCart.items.find(
-					(item) =>
-						item.productId.toString() === guestItem.productId.toString() &&
-						item.sizeId?.toString() === guestItem.sizeId?.toString()
-				);
+		// Duyệt qua các item trong giỏ hàng của khách (localItems) và merge vào giỏ hàng người dùng
+		for (const guestItem of localItems) {
+			// Kiểm tra xem item đã có trong giỏ người dùng chưa
+			const existing = userCart.items.find(
+				(item) =>
+					item.productId.toString() === guestItem.productId.toString() && item.sizeId?.toString() === guestItem.sizeId?.toString()
+			);
 
-				if (existing) {
-					existing.quantity += guestItem.quantity;
-				} else {
-					userCart.items.push(guestItem);
-				}
+			// Nếu đã có, cộng số lượng
+			if (existing) {
+				existing.quantity += guestItem.quantity;
+			} else {
+				// Nếu chưa có, thêm item mới vào giỏ
+				userCart.items.push(guestItem);
 			}
-
-			await userCart.save();
-			await guestCart.deleteOne(); // Xoá giỏ khách
-			res.clearCookie('cartToken'); // Xoá cookie
-			return res.json({message: 'Cart merged successfully'});
 		}
 
-		// Không có giỏ khách, chỉ trả về giỏ người dùng
+		// Lưu giỏ hàng người dùng sau khi merge
 		await userCart.save();
-		return res.json({message: 'No guest cart found, user cart ready'});
+
+		// Xoá giỏ khách nếu có
+		if (req.cookies.cartToken) {
+			await Cart.deleteOne({cartToken: req.cookies.cartToken}); // Xoá cart khách
+			res.clearCookie('cartToken'); // Clear cookie cartToken
+		}
+
+		return res.json({message: 'Cart merged successfully'});
 	} catch (err) {
 		console.error(err);
-		res.status(500).json({message: 'Error merging cart'});
+		return res.status(500).json({message: 'Error merging cart'});
 	}
 };

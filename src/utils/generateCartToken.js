@@ -1,4 +1,3 @@
-// utils/generateCartToken.js
 const {v4: uuidv4} = require('uuid');
 
 const generateCartToken = () => uuidv4();

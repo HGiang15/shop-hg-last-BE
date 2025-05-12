@@ -209,25 +209,26 @@ exports.login = async (req, res) => {
 
 		// 3. Nếu có giỏ hàng của khách, hợp nhất giỏ hàng
 		if (guestCart) {
-			// Nếu người dùng đã có giỏ hàng, hợp nhất
-			if (userCart) {
-				// Hợp nhất sản phẩm từ giỏ của khách vào giỏ của người dùng
-				userCart.items = [...userCart.items, ...guestCart.items];
-				// Loại bỏ trùng lặp (nếu cần)
-				userCart.items = userCart.items.reduce((uniqueItems, item) => {
-					if (!uniqueItems.some((existingItem) => existingItem.productId.toString() === item.productId.toString())) {
-						uniqueItems.push(item);
-					}
-					return uniqueItems;
-				}, []);
-				await userCart.save();
-			} else {
-				// Nếu người dùng chưa có giỏ hàng, tạo mới giỏ hàng
-				userCart = new Cart({userId: user._id, items: guestCart.items});
-				await userCart.save();
+			if (!userCart) {
+				userCart = new Cart({userId: user._id, items: []});
 			}
 
-			// 4. Xóa cartToken của khách (cookie)
+			for (const guestItem of guestCart.items) {
+				const exists = userCart.items.find(
+					(item) =>
+						item.productId.toString() === guestItem.productId.toString() &&
+						item.sizeId?.toString() === guestItem.sizeId?.toString()
+				);
+
+				if (exists) {
+					exists.quantity += guestItem.quantity;
+				} else {
+					userCart.items.push(guestItem);
+				}
+			}
+
+			await userCart.save();
+			await guestCart.deleteOne();
 			res.clearCookie('cartToken');
 		}
 
