@@ -16,7 +16,6 @@ exports.getAllCart = async (req, res) => {
 
 exports.addToCart = async (req, res) => {
 	const {productId, quantity, sizeId} = req.body;
-	console.log('Add to cart body:', req.body);
 
 	const user = req.user;
 	let cartToken = req.cookies.cartToken;
@@ -62,7 +61,7 @@ exports.updateItem = async (req, res) => {
 	}
 
 	// Tìm giỏ hàng dựa trên userId hoặc cartToken
-	const cart = await Cart.findOne(identifier);
+	const cart = await Cart.findOne(identifier).populate('items.productId');
 	if (!cart) return res.status(404).json({message: 'Giỏ hàng không tồn tại'});
 
 	// Tìm sản phẩm trong giỏ hàng

@@ -192,9 +192,6 @@ exports.login = async (req, res) => {
 			return res.status(403).json({status: 'Thất bại', message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'});
 		}
 
-		// Độ trễ 3 giây
-		await new Promise((resolve) => setTimeout(resolve, 3000));
-
 		// 1. Lấy giỏ hàng của guest từ cookie
 		const cartToken = req.cookies.cartToken;
 		let guestCart = null;
