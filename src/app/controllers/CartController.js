@@ -9,7 +9,15 @@ exports.getAllCart = async (req, res) => {
 	const user = req.user;
 
 	const identifier = user ? {userId: user.id} : {cartToken};
-	const cart = await Cart.findOne(identifier).populate('items.productId').populate('items.sizeId');
+
+	const cart = await Cart.findOne(identifier)
+		.populate({
+			path: 'items.productId',
+		})
+		.populate({
+			path: 'items.sizeId',
+			select: 'name',
+		});
 
 	res.json(cart || {items: []});
 };

@@ -40,6 +40,8 @@ exports.createProduct = async (req, res) => {
 			description,
 			detailDescription,
 			isFeatured: isFeatured === 'true' || isFeatured === true,
+			status: 'active', //
+			totalSold: 0,
 		});
 
 		await product.save();
@@ -105,7 +107,8 @@ exports.getProductById = async (req, res) => {
 exports.updateProduct = async (req, res) => {
 	try {
 		const {id} = req.params;
-		const {code, name, category, colors, quantityBySize, price, description, detailDescription, oldImages, isFeatured} = req.body;
+		const {code, name, category, colors, quantityBySize, price, description, detailDescription, oldImages, isFeatured, status} =
+			req.body;
 
 		const existingProduct = await Product.findById(id);
 		if (!existingProduct) {
@@ -149,6 +152,16 @@ exports.updateProduct = async (req, res) => {
 			images: finalImages,
 			isFeatured: isFeatured === 'true' || isFeatured === true,
 		};
+
+		// ✅ Tính tổng số lượng mới
+		const totalQuantity = parsedQuantityBySize.reduce((sum, item) => sum + item.quantity, 0);
+
+		// ✅ Ưu tiên dùng status nếu gửi lên, nếu không thì tự động cập nhật
+		if (status) {
+			updateData.status = status;
+		} else {
+			updateData.status = totalQuantity === 0 ? 'discontinued' : 'active';
+		}
 
 		const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {new: true});
 

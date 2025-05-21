@@ -10,10 +10,6 @@ async function connect() {
 	}
 
 	try {
-		// await mongoose.connect(uri, {
-		// 	useNewUrlParser: true,
-		// 	useUnifiedTopology: true,
-		// });
 		await mongoose.connect(uri);
 		console.log('✅ Connected successfully');
 	} catch (error) {
@@ -22,20 +18,3 @@ async function connect() {
 }
 
 module.exports = {connect};
-
-// C2
-// const mongoose = require("mongoose");
-
-// async function connect() {
-//     try {
-//         await mongoose.connect("mongodb://localhost:27017/shop-hg-dev", {
-//             useNewUrlParser: true,
-//             useUnifiedTopology: true,
-//         });
-//         console.log("Connect successfully");
-//     } catch (error) {
-//         console.log("Connect failed");
-//     }
-// }
-
-// module.exports = { connect };

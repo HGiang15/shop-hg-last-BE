@@ -63,6 +63,7 @@ const ProductSchema = new Schema(
 		price: {
 			type: Number,
 			required: true,
+			min: [0, 'Giá sản phẩm không thể âm'],
 			default: 0,
 		},
 		description: {
@@ -76,6 +77,15 @@ const ProductSchema = new Schema(
 		isFeatured: {
 			type: Boolean,
 			default: false,
+		},
+		totalSold: {
+			type: Number,
+			default: 0,
+		},
+		status: {
+			type: String,
+			enum: ['active', 'inactive', 'discontinued'],
+			default: 'active',
 		},
 	},
 	{timestamps: true}
