@@ -5,6 +5,7 @@ const sizeRouter = require('./size');
 const categoryRouter = require('./category');
 const cartRouter = require('./cart');
 const userAddressRouter = require('./userAddress');
+const orderRouter = require('./order');
 const locationRouter = require('./location');
 const reviewRouter = require('./review');
 
@@ -15,6 +16,7 @@ function route(app) {
 	app.use('/api/size', sizeRouter);
 	app.use('/api/category', categoryRouter);
 	app.use('/api/cart', cartRouter);
+	app.use('/api/order', orderRouter);
 	app.use('/api/user-addresses', userAddressRouter);
 	app.use('/api/locations', locationRouter);
 	app.use('/api/review', reviewRouter);
