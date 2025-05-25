@@ -9,7 +9,8 @@ router.get('/my-order', auth, orderController.getUserOrders);
 router.delete('/delete-order/:id', auth, orderController.deleteOrder);
 
 // Admin
-router.get('/getAllOrders', orderController.getAllOrders); // bạn có thể thêm middleware kiểm tra quyền admin ở đây
+router.get('/getAllOrders', orderController.getAllOrders);
 router.put('/update-status/:id', orderController.updateStatus);
+router.get('/getOrderById/:id', orderController.getOrderById);
 
 module.exports = router;

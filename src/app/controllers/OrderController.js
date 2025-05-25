@@ -3,7 +3,7 @@ const Product = require('../models/Product');
 
 exports.createOrder = async (req, res) => {
 	try {
-		const {shippingAddress, items} = req.body;
+		const {shippingAddress, items, note = ''} = req.body;
 
 		if (!items || !Array.isArray(items) || items.length === 0) {
 			return res.status(400).json({message: 'Danh sách sản phẩm không hợp lệ'});
@@ -44,6 +44,7 @@ exports.createOrder = async (req, res) => {
 			shippingAddress,
 			items: orderItems,
 			totalAmount,
+			note,
 		});
 
 		res.status(201).json(order);
@@ -101,12 +102,31 @@ exports.getAllOrders = async (req, res) => {
 	}
 };
 
+exports.getOrderById = async (req, res) => {
+	try {
+		const {id} = req.params;
+
+		const order = await Order.findById(id)
+			.populate('userId', 'name email') // chỉ lấy name và email
+			.populate('shippingAddress');
+
+		if (!order) {
+			return res.status(404).json({message: 'Không tìm thấy đơn hàng'});
+		}
+
+		res.status(200).json(order);
+	} catch (error) {
+		console.error('Lỗi khi lấy chi tiết đơn hàng:', error);
+		res.status(500).json({message: 'Lỗi server', error: error.message});
+	}
+};
+
 exports.updateStatus = async (req, res) => {
 	try {
 		const {id} = req.params;
 		const {status} = req.body;
 
-		if (!['pending', 'shipping', 'delivered', 'cancelled'].includes(status)) {
+		if (!['pending', 'shipping', 'success', 'cancelled'].includes(status)) {
 			return res.status(400).json({message: 'Trạng thái không hợp lệ'});
 		}
 
