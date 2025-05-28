@@ -13,4 +13,7 @@ router.get('/getAllOrders', orderController.getAllOrders);
 router.put('/update-status/:id', orderController.updateStatus);
 router.get('/getOrderById/:id', orderController.getOrderById);
 
+router.post('/create-payment-url', auth, orderController.createPaymentUrl);
+router.get('/vnpay-return', orderController.returnPayment);
+
 module.exports = router;

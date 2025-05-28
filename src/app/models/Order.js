@@ -36,6 +36,17 @@ const OrderSchema = new mongoose.Schema(
 			enum: ['pending', 'shipping', 'success', 'cancelled'],
 			default: 'pending',
 		},
+		isPaid: {
+			type: Boolean,
+			default: false,
+		},
+		paymentMethod: {
+			type: String,
+			enum: ['cod', 'vnpay', 'paypal'],
+		},
+		paymentTime: {
+			type: Date,
+		},
 		note: {
 			type: String,
 			default: '',

@@ -1,5 +1,19 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const moment = require('moment');
+const config = require('../../config/vnpay.config');
+
+const {VNPay, ignoreLogger, ProductCode, VnpLocale, dateFormat, VerifyReturnUrl} = require('vnpay');
+
+const vnpay = new VNPay({
+	tmnCode: process.env.VNP_TMNCODE,
+	secureSecret: process.env.VNP_HASH_SECRET,
+	vnpayHost: process.env.VNP_URL,
+	testMode: true,
+	hashAlgorithm: 'SHA512',
+	enableLog: true,
+	loggerFn: ignoreLogger,
+});
 
 exports.createOrder = async (req, res) => {
 	try {
@@ -9,17 +23,14 @@ exports.createOrder = async (req, res) => {
 			return res.status(400).json({message: 'Danh sách sản phẩm không hợp lệ'});
 		}
 
-		// Lấy danh sách productId để fetch từ DB
 		const productIds = items.map((item) => item.productId);
 		const products = await Product.find({_id: {$in: productIds}});
 
-		// Map productId => product data
 		const productMap = {};
 		products.forEach((product) => {
 			productMap[product._id] = product;
 		});
 
-		// Xây dựng lại danh sách items an toàn
 		const orderItems = items.map((item) => {
 			const product = productMap[item.productId];
 			if (!product) {
@@ -33,7 +44,7 @@ exports.createOrder = async (req, res) => {
 				color: item.color || '',
 				size: item.size || '',
 				quantity: item.quantity,
-				price: product.price, // Lấy từ DB chứ không dùng client
+				price: product.price,
 			};
 		});
 
@@ -64,7 +75,6 @@ exports.getUserOrders = async (req, res) => {
 	}
 };
 
-// Chắc cái này bên admin thôi
 exports.getAllOrders = async (req, res) => {
 	try {
 		const page = parseInt(req.query.page) || 1;
@@ -106,9 +116,7 @@ exports.getOrderById = async (req, res) => {
 	try {
 		const {id} = req.params;
 
-		const order = await Order.findById(id)
-			.populate('userId', 'name email') // chỉ lấy name và email
-			.populate('shippingAddress');
+		const order = await Order.findById(id).populate('userId', 'name email').populate('shippingAddress');
 
 		if (!order) {
 			return res.status(404).json({message: 'Không tìm thấy đơn hàng'});
@@ -148,8 +156,6 @@ exports.deleteOrder = async (req, res) => {
 			return res.status(404).json({message: 'Đơn hàng không tồn tại'});
 		}
 
-		// Chỉ cho phép người sở hữu đơn hoặc admin xóa (nếu có logic admin thì check thêm ở đây)
-		// Ví dụ: nếu bạn có req.user.role thì có thể kiểm tra quyền ở đây
 		if (order.userId.toString() !== req.user._id.toString()) {
 			return res.status(403).json({message: 'Bạn không có quyền xóa đơn hàng này'});
 		}
@@ -160,5 +166,65 @@ exports.deleteOrder = async (req, res) => {
 	} catch (error) {
 		console.error('Delete order error:', error);
 		res.status(500).json({message: 'Xóa đơn hàng thất bại', error: error.message});
+	}
+};
+
+exports.createPaymentUrl = async (req, res) => {
+	try {
+		const {orderId, amount} = req.body;
+		const order = await Order.findById(orderId);
+
+		if (!order) {
+			return res.status(404).json({message: 'Không tìm thấy đơn hàng'});
+		}
+
+		const paymentUrl = vnpay.buildPaymentUrl({
+			vnp_Amount: amount * 100,
+			vnp_IpAddr: req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.ip,
+			vnp_TxnRef: orderId,
+			vnp_OrderInfo: `Thanh toán ${orderId}`,
+			vnp_OrderType: ProductCode.Other,
+			vnp_ReturnUrl: process.env.VNP_RETURN_URL,
+			vnp_Locale: VnpLocale.VN,
+		});
+
+		res.status(200).json(paymentUrl);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({message: 'Lỗi tạo URL thanh toán', error: err.message});
+	}
+};
+
+exports.returnPayment = async (req, res) => {
+	try {
+		const verify = vnpay.verifyReturnUrl(req.query);
+
+		const {vnp_TxnRef, vnp_ResponseCode} = req.query;
+
+		if (!verify.isVerified) {
+			return res.status(400).json({message: 'Dữ liệu không hợp lệ (chữ ký sai)'});
+		}
+
+		if (vnp_ResponseCode === '00') {
+			const order = await Order.findById(vnp_TxnRef);
+
+			if (!order) {
+				return res.status(404).json({message: 'Không tìm thấy đơn hàng'});
+			}
+
+			if (!order.isPaid) {
+				order.isPaid = true;
+				order.paymentMethod = 'vnpay';
+				order.paymentTime = new Date();
+				await order.save();
+			}
+
+			return res.redirect(`http://localhost:3000/payment?orderId=${vnp_TxnRef}&vnp_ResponseCode=${vnp_ResponseCode}`);
+		} else {
+			return res.redirect(`http://localhost:3000/payment?orderId=${vnp_TxnRef}&vnp_ResponseCode=${vnp_ResponseCode}`);
+		}
+	} catch (error) {
+		console.error('Lỗi xử lý returnPayment:', error);
+		return res.status(500).json({message: 'Lỗi máy chủ khi xử lý thanh toán', error: error.message});
 	}
 };

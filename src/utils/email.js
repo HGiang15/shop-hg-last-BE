@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 transporter.verify((error, success) => {
 	if (error) {
-		console.error('Lỗi xác minh transporter:', error);
+		// console.error('Lỗi xác minh transporter:', error);
 	} else {
 		console.log('Transporter sẵn sàng gửi email:', success);
 	}
