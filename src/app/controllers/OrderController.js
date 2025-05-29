@@ -184,7 +184,7 @@ exports.createPaymentUrl = async (req, res) => {
 			vnp_TxnRef: orderId,
 			vnp_OrderInfo: `Thanh toán ${orderId}`,
 			vnp_OrderType: ProductCode.Other,
-			vnp_ReturnUrl: process.env.VNP_RETURN_URL,
+			vnp_ReturnUrl: process.env.NODE_ENV === 'development' ? process.env.VNP_RETURN_URL_DEV : process.env.VNP_RETURN_URL_PRODUCTION,
 			vnp_Locale: VnpLocale.VN,
 		});
 
