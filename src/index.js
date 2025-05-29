@@ -25,7 +25,7 @@ const port = 3003;
 // -----------------------------
 app.use(
 	cors({
-		origin: 'http://localhost:3000', // domain frontend
+		origin: ['http://localhost:3000', 'https://shop-hg-last-n4tq.vercel.app'], // domain frontend
 		credentials: true, // cho phép gửi cookie
 	})
 );
