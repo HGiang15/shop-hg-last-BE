@@ -125,7 +125,7 @@ exports.register = async (req, res) => {
 			data: {userId: savedUser._id, email: savedUser.email},
 		});
 	} catch (error) {
-		console.error('Lỗi đăng ký:', error);
+		console.error('Vui lòng kiểm tra lại mạng.:', error);
 		res.status(500).json({status: 'Thất bại', message: 'Lỗi đăng ký.'});
 	}
 };
