@@ -10,9 +10,7 @@ const provinces = JSON.parse(rawData);
 
 // 💡 Kết nối MongoDB trước khi insert
 mongoose
-	.connect(
-		process.env.NODE_ENV === 'development' ? process.env.process.env.MONGODB_URI_DEV : process.env.process.env.MONGODB_URI_PRODUCTION
-	)
+	.connect(process.env.NODE_ENV === 'development' ? process.env.MONGODB_URI_DEV : process.env.MONGODB_URI_PRODUCTION)
 	.then(async () => {
 		console.log('✅ Kết nối MongoDB thành công');
 

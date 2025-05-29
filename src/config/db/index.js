@@ -2,8 +2,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 
 async function connect() {
-	const uri =
-		process.env.NODE_ENV === 'development' ? process.env.process.env.MONGODB_URI_DEV : process.env.process.env.MONGODB_URI_PRODUCTION;
+	const uri = process.env.NODE_ENV === 'development' ? process.env.MONGODB_URI_DEV : process.env.MONGODB_URI_PRODUCTION;
 
 	if (!uri) {
 		console.error('❌ Missing MONGODB_URI in .env file');
