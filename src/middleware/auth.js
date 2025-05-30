@@ -26,12 +26,12 @@ module.exports = (req, res, next) => {
 	}
 
 	const token = authHeader.split(' ')[1];
-	console.log('Token nhận được:', token);
-	console.log('JWT_SECRET:', process.env.JWT_SECRET);
+	// console.log('Token nhận được:', token);
+	// console.log('JWT_SECRET:', process.env.JWT_SECRET);
 
 	try {
 		const decoded = jwt.verify(token, process.env.JWT_SECRET);
-		console.log('Decoded token:', decoded);
+		// console.log('Decoded token:', decoded);
 
 		req.user = {_id: decoded.id, name: decoded.name}; // giả sử token có chứa name
 		next();

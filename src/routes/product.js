@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('./../app/controllers/ProductController');
-const upload = require('./../middleware/upload');
 
 /**
  * @swagger
@@ -62,7 +61,7 @@ const upload = require('./../middleware/upload');
  */
 
 // router.post('/createProduct', productController.createProduct);
-router.post('/createProduct', upload.array('images', 6), productController.createProduct);
+router.post('/createProduct', productController.createProduct);
 
 /**
  * @swagger
@@ -166,7 +165,7 @@ router.get('/getProductById/:id', productController.getProductById);
  *         description: Lỗi server
  */
 // router.put('/updateProduct/:id', productController.updateProduct);
-router.put('/updateProduct/:id', upload.array('images', 6), productController.updateProduct);
+router.put('/updateProduct/:id', productController.updateProduct);
 
 /**
  * @swagger

@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const reviewController = require('./../app/controllers/ReviewController');
 const auth = require('../middleware/auth');
-const upload = require('./../middleware/upload');
 
 // GET: Lấy tất cả đánh giá của một sản phẩm
 router.get('/get-reviews-by-product-id/:productId', reviewController.getReviewsByProductId);

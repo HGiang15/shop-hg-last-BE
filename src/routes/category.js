@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const categoryController = require('./../app/controllers/CategoryController');
-const upload = require('./../middleware/upload');
 
 /**
  * @swagger
@@ -29,7 +28,7 @@ const upload = require('./../middleware/upload');
  *       500:
  *         description: Lỗi server
  */
-router.post('/createCategory', upload.single('image'), categoryController.createCategory);
+router.post('/createCategory', categoryController.createCategory);
 
 /**
  * @swagger
@@ -101,7 +100,7 @@ router.get('/getCategoryById/:id', categoryController.getCategoryById);
  *       500:
  *         description: Lỗi server
  */
-router.put('/updateCategory/:id', upload.single('image'), categoryController.updateCategory);
+router.put('/updateCategory/:id', categoryController.updateCategory);
 
 /**
  * @swagger

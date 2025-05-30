@@ -8,6 +8,7 @@ const userAddressRouter = require('./userAddress');
 const orderRouter = require('./order');
 const locationRouter = require('./location');
 const reviewRouter = require('./review');
+const uploadRouter = require('./upload');
 
 function route(app) {
 	app.use('/api/user', authRouter);
@@ -20,6 +21,7 @@ function route(app) {
 	app.use('/api/user-addresses', userAddressRouter);
 	app.use('/api/locations', locationRouter);
 	app.use('/api/review', reviewRouter);
+	app.use('/api/upload', uploadRouter);
 }
 
 module.exports = route;

@@ -1,22 +1,23 @@
 const Product = require('./../models/Product');
 const fs = require('fs').promises;
 const path = require('path');
-const BASE_URL = 'http://localhost:3003/uploads/';
 
 // Create
 exports.createProduct = async (req, res) => {
 	try {
-		const {code, name, category, colors, price, description, detailDescription, isFeatured} = req.body;
+		const {code, name, category, colors, price, description, detailDescription, isFeatured, images} = req.body;
 
 		const quantityBySizeString = req.body.quantityBySize;
 
 		let parsedCategory = {};
 		let parsedColors = [];
+		let parsedImages = [];
 		let parsedQuantityBySize = [];
 
 		try {
 			parsedCategory = typeof category === 'string' ? JSON.parse(category) : category;
 			parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors;
+			parsedImages = typeof images === 'string' ? JSON.parse(images) : images;
 			parsedQuantityBySize = typeof quantityBySizeString === 'string' ? JSON.parse(quantityBySizeString) : quantityBySizeString;
 		} catch (error) {
 			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ (category/colors/quantityBySize)'});
@@ -27,8 +28,6 @@ exports.createProduct = async (req, res) => {
 			quantity: Number(item.quantity),
 		}));
 
-		const images = req.files?.map((file) => file.filename) || [];
-
 		const product = new Product({
 			code,
 			name,
@@ -36,11 +35,11 @@ exports.createProduct = async (req, res) => {
 			colors: parsedColors,
 			quantityBySize: parsedQuantityBySize,
 			price,
-			images,
+			images: parsedImages,
 			description,
 			detailDescription,
 			isFeatured: isFeatured === 'true' || isFeatured === true,
-			status: 'active', //
+			status: 'active',
 			totalSold: 0,
 		});
 
@@ -48,10 +47,7 @@ exports.createProduct = async (req, res) => {
 
 		res.status(201).json({
 			message: 'Tạo sản phẩm thành công',
-			data: {
-				...product.toObject(),
-				images: product.images.map((img) => BASE_URL + img),
-			},
+			data: product,
 		});
 	} catch (error) {
 		console.error(error);
@@ -74,7 +70,7 @@ exports.getAllProducts = async (req, res) => {
 			const productObject = product.toObject();
 			return {
 				...productObject,
-				images: productObject.images.map((img) => BASE_URL + img),
+				images: productObject.images,
 			};
 		});
 
@@ -107,8 +103,7 @@ exports.getProductById = async (req, res) => {
 exports.updateProduct = async (req, res) => {
 	try {
 		const {id} = req.params;
-		const {code, name, category, colors, quantityBySize, price, description, detailDescription, oldImages, isFeatured, status} =
-			req.body;
+		const {code, name, category, colors, quantityBySize, price, description, detailDescription, images, isFeatured, status} = req.body;
 
 		const existingProduct = await Product.findById(id);
 		if (!existingProduct) {
@@ -117,12 +112,14 @@ exports.updateProduct = async (req, res) => {
 
 		let parsedCategory = {};
 		let parsedColors = [];
+		let parsedImages = [];
 		let parsedQuantityBySize = [];
 
 		try {
 			parsedCategory = typeof category === 'string' ? JSON.parse(category) : category;
 			parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors;
 			parsedQuantityBySize = typeof quantityBySize === 'string' ? JSON.parse(quantityBySize) : quantityBySize;
+			parsedImages = typeof images === 'string' ? JSON.parse(images) : images;
 		} catch (error) {
 			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ'});
 		}
@@ -131,14 +128,6 @@ exports.updateProduct = async (req, res) => {
 			...item,
 			quantity: Number(item.quantity),
 		}));
-
-		let retainedImages = [];
-		if (oldImages) {
-			retainedImages = typeof oldImages === 'string' ? JSON.parse(oldImages) : oldImages;
-			retainedImages = retainedImages.map((img) => img.split('/').pop());
-		}
-		const newImages = req.files?.map((file) => file.filename) || [];
-		const finalImages = [...retainedImages, ...newImages];
 
 		const updateData = {
 			code,
@@ -149,7 +138,7 @@ exports.updateProduct = async (req, res) => {
 			price,
 			description,
 			detailDescription,
-			images: finalImages,
+			images: parsedImages,
 			isFeatured: isFeatured === 'true' || isFeatured === true,
 		};
 
@@ -167,10 +156,7 @@ exports.updateProduct = async (req, res) => {
 
 		res.status(200).json({
 			message: 'Cập nhật sản phẩm thành công',
-			data: {
-				...updatedProduct.toObject(),
-				images: updatedProduct.images.map((img) => BASE_URL + img),
-			},
+			data: updatedProduct,
 		});
 	} catch (error) {
 		console.error(error);
@@ -223,7 +209,7 @@ exports.getFeaturedProducts = async (req, res) => {
 			const obj = product.toObject();
 			return {
 				...obj,
-				images: obj.images.map((img) => BASE_URL + img),
+				images: obj.images,
 			};
 		});
 
@@ -296,7 +282,7 @@ exports.filterProducts = async (req, res) => {
 			const obj = product.toObject();
 			return {
 				...obj,
-				images: obj.images.map((img) => BASE_URL + img),
+				images: obj.images,
 			};
 		});
 

@@ -1,15 +1,17 @@
 const Category = require('./../models/Category');
 const fs = require('fs').promises;
-const BASE_URL = 'http://localhost:3003/uploads/';
 
 // Create
 exports.createCategory = async (req, res) => {
 	try {
-		const {name} = req.body;
-		const image = req.file?.filename;
+		const {name, image} = req.body;
+
+		if (!name) {
+			return res.status(400).json({message: 'Vui lòng nhập tên danh mục!'});
+		}
 
 		if (!image) {
-			return res.status(400).json({message: 'Vui lòng chọn ảnh danh mục'});
+			return res.status(400).json({message: 'Vui lòng chọn ảnh danh mục!'});
 		}
 
 		const category = new Category({name, image});
@@ -17,10 +19,7 @@ exports.createCategory = async (req, res) => {
 
 		res.status(201).json({
 			message: 'Tạo danh mục thành công',
-			data: {
-				...category.toObject(),
-				image: BASE_URL + category.image,
-			},
+			data: category,
 		});
 	} catch (err) {
 		res.status(500).json({message: err.message});
@@ -41,7 +40,7 @@ exports.getAllCategories = async (req, res) => {
 
 		const result = categories.map((c) => ({
 			...c.toObject(),
-			image: BASE_URL + c.image,
+			image: c.image,
 		}));
 
 		res.status(200).json({
@@ -63,7 +62,7 @@ exports.getCategoryById = async (req, res) => {
 
 		res.status(200).json({
 			...category.toObject(),
-			image: BASE_URL + category.image,
+			image: category.image,
 		});
 	} catch (err) {
 		res.status(500).json({message: err.message});
@@ -81,41 +80,37 @@ exports.getCategoryByName = async (req, res) => {
 
 		res.status(200).json({
 			...category.toObject(),
-			image: BASE_URL + category.image,
+			image: category.image,
 		});
 	} catch (err) {
 		res.status(500).json({message: err.message});
 	}
 };
 
-// Update
 exports.updateCategory = async (req, res) => {
 	try {
-		const {name} = req.body;
-		const image = req.file?.filename;
+		const {id} = req.params;
+		const {name, image} = req.body;
 
-		const category = await Category.findById(req.params.id);
+		const category = await Category.findByIdAndUpdate(
+			id,
+			{
+				name: name,
+				image: image,
+			},
+			{
+				new: true,
+			}
+		);
+
 		if (!category) return res.status(404).json({message: 'Không tìm thấy danh mục'});
 
-		// Nếu có ảnh mới, xoá ảnh cũ
-		if (image && category.image) {
-			await fs.unlink(`./src/uploads/${category.image}`).catch(() => {});
-		}
-
-		category.name = name || category.name;
-		if (image) category.image = image;
-
-		await category.save();
-
-		res.status(200).json({
+		return res.status(200).json({
 			message: 'Cập nhật danh mục thành công',
-			data: {
-				...category.toObject(),
-				image: BASE_URL + category.image,
-			},
+			data: category,
 		});
 	} catch (err) {
-		res.status(500).json({message: err.message});
+		return res.status(500).json({message: err.message});
 	}
 };
 
