@@ -70,9 +70,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // -----------------------------
 route(app);
 
-// -----------------------------
-// ✅ Start server
-// -----------------------------
 app.listen(port, () => {
 	console.log(`Server running on port ${port}`);
 });
