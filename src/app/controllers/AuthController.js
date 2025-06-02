@@ -313,8 +313,32 @@ exports.getListUser = async (req, res) => {
 		const limit = parseInt(req.query.limit) || 10;
 		const skip = (page - 1) * limit;
 
-		const totalUsers = await User.countDocuments();
-		const users = await User.find().skip(skip).limit(limit).select('-password');
+		const {search = '', sort = 'newest', role, status} = req.query;
+
+		// Tìm kiếm theo tên
+		const query = {
+			name: {$regex: search, $options: 'i'},
+		};
+
+		// Lọc theo role
+		if (role === '0' || role === '1') {
+			query.role = Number(role);
+		}
+
+		// Lọc theo status
+		if (status === '0' || status === '1') {
+			query.status = Number(status);
+		}
+
+		// Sắp xếp
+		let sortOption = {};
+		if (sort === 'newest') sortOption = {createdAt: -1};
+		else if (sort === 'oldest') sortOption = {createdAt: 1};
+		else if (sort === 'name_asc') sortOption = {name: 1};
+		else if (sort === 'name_desc') sortOption = {name: -1};
+
+		const totalUsers = await User.countDocuments(query);
+		const users = await User.find(query).sort(sortOption).skip(skip).limit(limit).select('-password');
 
 		const mappedUsers = users.map((user) => ({
 			id: user._id,

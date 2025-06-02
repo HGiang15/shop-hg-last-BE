@@ -38,17 +38,31 @@ exports.createCategory = async (req, res) => {
 	}
 };
 
-// Get All
+// Get All Categories with search and sort
 exports.getAllCategories = async (req, res) => {
 	try {
-		const page = parseInt(req.query.page) || 1;
-		const limit = parseInt(req.query.limit) || 5;
-		const skip = (page - 1) * limit;
+		const {page = 1, limit = 5, sort = 'newest', search = ''} = req.query;
 
-		const totalItems = await Category.countDocuments();
-		const totalPages = Math.ceil(totalItems / limit);
+		const pageNumber = parseInt(page, 10);
+		const limitNumber = parseInt(limit, 10);
+		const skip = (pageNumber - 1) * limitNumber;
 
-		const categories = await Category.find().sort({createdAt: -1}).skip(skip).limit(limit).populate('sizes');
+		// Tìm kiếm theo tên, không phân biệt hoa thường
+		const query = {
+			name: {$regex: search, $options: 'i'},
+		};
+
+		// Xử lý sort
+		let sortOption = {};
+		if (sort === 'newest') sortOption = {createdAt: -1};
+		else if (sort === 'oldest') sortOption = {createdAt: 1};
+		else if (sort === 'name_asc') sortOption = {name: 1};
+		else if (sort === 'name_desc') sortOption = {name: -1};
+
+		const totalItems = await Category.countDocuments(query);
+		const totalPages = Math.ceil(totalItems / limitNumber);
+
+		const categories = await Category.find(query).sort(sortOption).skip(skip).limit(limitNumber).populate('sizes');
 
 		const result = categories.map((c) => ({
 			...c.toObject(),
@@ -57,7 +71,7 @@ exports.getAllCategories = async (req, res) => {
 
 		res.status(200).json({
 			categories: result,
-			currentPage: page,
+			currentPage: pageNumber,
 			totalPages,
 			totalItems,
 		});

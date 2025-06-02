@@ -18,20 +18,29 @@ exports.createColor = async (req, res) => {
 	}
 };
 
-// Read all
+// Read all with search and sort
 exports.getAllColors = async (req, res) => {
 	try {
-		const {page = 1, limit = 10} = req.query;
+		const {page = 1, limit = 10, sort = 'newest', search = ''} = req.query;
 
 		const pageNumber = parseInt(page, 10);
 		const limitNumber = parseInt(limit, 10);
 		const skip = (pageNumber - 1) * limitNumber;
 
-		// Lấy tổng số lượng màu
-		const totalColors = await Color.countDocuments();
+		// Tìm kiếm theo tên ko phân biệt hoa thường
+		const query = {
+			name: {$regex: search, $options: 'i'},
+		};
 
-		// Lấy danh sách màu có phân trang và sắp xếp
-		const colors = await Color.find({}).sort({createdAt: -1}).skip(skip).limit(limitNumber);
+		// Xử lý sort
+		let sortOption = {};
+		if (sort === 'newest') sortOption = {createdAt: -1};
+		else if (sort === 'oldest') sortOption = {createdAt: 1};
+		else if (sort === 'name_asc') sortOption = {name: 1};
+		else if (sort === 'name_desc') sortOption = {name: -1};
+
+		const totalColors = await Color.countDocuments(query);
+		const colors = await Color.find(query).sort(sortOption).skip(skip).limit(limitNumber);
 
 		const totalPages = Math.ceil(totalColors / limitNumber);
 

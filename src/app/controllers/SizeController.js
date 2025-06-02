@@ -35,26 +35,37 @@ exports.getSizesByCategory = async (req, res) => {
 	}
 };
 
-// Read all
+// Get all sizes with search, sort, pagination
 exports.getAllSizes = async (req, res) => {
 	try {
-		const {page = 1, limit = 5} = req.query;
+		const {page = 1, limit = 5, sort = 'newest', search = ''} = req.query;
 
 		const pageNumber = parseInt(page, 10);
 		const limitNumber = parseInt(limit, 10);
 		const skip = (pageNumber - 1) * limitNumber;
 
-		const totalSizes = await Size.countDocuments();
+		// Tìm kiếm theo tên ko phân biệt hoa thường
+		const query = {
+			name: {$regex: search, $options: 'i'},
+		};
 
-		const sizes = await Size.find({}).sort({createdAt: -1}).skip(skip).limit(limitNumber);
+		// Xử lý sort
+		let sortOption = {};
+		if (sort === 'newest') sortOption = {createdAt: -1};
+		else if (sort === 'oldest') sortOption = {createdAt: 1};
+		else if (sort === 'name_asc') sortOption = {name: 1};
+		else if (sort === 'name_desc') sortOption = {name: -1};
 
-		const totalPages = Math.ceil(totalSizes / limitNumber);
+		const totalItems = await Size.countDocuments(query);
+		const totalPages = Math.ceil(totalItems / limitNumber);
+
+		const sizes = await Size.find(query).sort(sortOption).skip(skip).limit(limitNumber);
 
 		res.status(200).json({
 			sizes,
-			totalPages,
 			currentPage: pageNumber,
-			totalItems: totalSizes,
+			totalPages,
+			totalItems,
 		});
 	} catch (error) {
 		res.status(500).json({message: error.message});

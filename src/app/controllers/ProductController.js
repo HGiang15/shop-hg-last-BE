@@ -55,32 +55,51 @@ exports.createProduct = async (req, res) => {
 	}
 };
 
-// Get all
+// Get all products with search, sort, pagination
 exports.getAllProducts = async (req, res) => {
 	try {
-		const page = parseInt(req.query.page) || 1;
-		const limit = parseInt(req.query.limit) || 5;
-		const skip = (page - 1) * limit;
+		const {page = 1, limit = 10, sort = 'newest', search = ''} = req.query;
 
-		const products = await Product.find({}).skip(skip).limit(limit);
-		const totalItems = await Product.countDocuments({});
-		const totalPages = Math.ceil(totalItems / limit);
+		const pageNumber = parseInt(page, 10);
+		const limitNumber = parseInt(limit, 10);
+		const skip = (pageNumber - 1) * limitNumber;
 
+		// Tìm kiếm theo tên ko phân biệt hoa thường
+		const query = {
+			name: {$regex: search, $options: 'i'},
+		};
+
+		// Xử lý sort
+		let sortOption = {};
+		if (sort === 'newest') sortOption = {createdAt: -1};
+		else if (sort === 'oldest') sortOption = {createdAt: 1};
+		else if (sort === 'name_asc') sortOption = {name: 1};
+		else if (sort === 'name_desc') sortOption = {name: -1};
+		else if (sort === 'price_asc') sortOption = {price: 1};
+		else if (sort === 'price_desc') sortOption = {price: -1};
+
+		const totalItems = await Product.countDocuments(query);
+		const products = await Product.find(query).sort(sortOption).skip(skip).limit(limitNumber);
+
+		const totalPages = Math.ceil(totalItems / limitNumber);
+
+		// Có thể thêm xử lý images nếu cần, hiện tại giữ nguyên mảng images
 		const productsWithImages = products.map((product) => {
-			const productObject = product.toObject();
+			const obj = product.toObject();
 			return {
-				...productObject,
-				images: productObject.images,
+				...obj,
+				images: obj.images,
 			};
 		});
 
 		res.status(200).json({
 			products: productsWithImages,
-			currentPage: page,
-			totalItems,
 			totalPages,
+			currentPage: pageNumber,
+			totalItems,
 		});
 	} catch (error) {
+		console.error(error);
 		res.status(500).json({message: error.message});
 	}
 };
@@ -142,10 +161,10 @@ exports.updateProduct = async (req, res) => {
 			isFeatured: isFeatured === 'true' || isFeatured === true,
 		};
 
-		// ✅ Tính tổng số lượng mới
+		// Tính tổng số lượng mới
 		const totalQuantity = parsedQuantityBySize.reduce((sum, item) => sum + item.quantity, 0);
 
-		// ✅ Ưu tiên dùng status nếu gửi lên, nếu không thì tự động cập nhật
+		// Ưu tiên dùng status nếu gửi lên, nếu không thì tự động cập nhật
 		if (status) {
 			updateData.status = status;
 		} else {
