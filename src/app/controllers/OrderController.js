@@ -1,7 +1,6 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const moment = require('moment');
-const config = require('../../config/vnpay.config');
 
 const {VNPay, ignoreLogger, ProductCode, VnpLocale, dateFormat, VerifyReturnUrl} = require('vnpay');
 
@@ -156,16 +155,224 @@ exports.deleteOrder = async (req, res) => {
 			return res.status(404).json({message: 'Đơn hàng không tồn tại'});
 		}
 
-		if (order.userId.toString() !== req.user._id.toString()) {
-			return res.status(403).json({message: 'Bạn không có quyền xóa đơn hàng này'});
-		}
-
 		await Order.findByIdAndDelete(id);
 
 		res.json({message: 'Xóa đơn hàng thành công'});
 	} catch (error) {
 		console.error('Delete order error:', error);
 		res.status(500).json({message: 'Xóa đơn hàng thất bại', error: error.message});
+	}
+};
+
+exports.getDashboardStats = async (req, res) => {
+	try {
+		// Lấy ngày hiện tại
+		const todayStart = moment().startOf('day').toDate();
+		const todayEnd = moment().endOf('day').toDate();
+		const monthStart = moment().startOf('month').toDate();
+		const monthEnd = moment().endOf('month').toDate();
+		const yearStart = moment().startOf('year').toDate();
+		const yearEnd = moment().endOf('year').toDate();
+
+		// Tổng số đơn hàng
+		const totalOrders = await Order.countDocuments();
+
+		// Đơn hàng thành công
+		const successOrders = await Order.countDocuments({status: 'success'});
+
+		// Đơn hàng bị hủy
+		const cancelledOrders = await Order.countDocuments({status: 'cancelled'});
+
+		// Tổng doanh thu (chỉ tính đơn thành công và đã thanh toán)
+		const totalRevenueAgg = await Order.aggregate([
+			{$match: {status: 'success', isPaid: true}},
+			{$group: {_id: null, total: {$sum: '$totalAmount'}}},
+		]);
+		const totalRevenue = totalRevenueAgg[0]?.total || 0;
+
+		// Doanh thu trong ngày
+		const dailyRevenueAgg = await Order.aggregate([
+			{
+				$match: {
+					status: 'success',
+					isPaid: true,
+					paymentTime: {$gte: todayStart, $lte: todayEnd},
+				},
+			},
+			{$group: {_id: null, total: {$sum: '$totalAmount'}}},
+		]);
+		const dailyRevenue = dailyRevenueAgg[0]?.total || 0;
+
+		// Doanh thu trong tháng
+		const monthlyRevenueAgg = await Order.aggregate([
+			{
+				$match: {
+					status: 'success',
+					isPaid: true,
+					paymentTime: {$gte: monthStart, $lte: monthEnd},
+				},
+			},
+			{$group: {_id: null, total: {$sum: '$totalAmount'}}},
+		]);
+		const monthlyRevenue = monthlyRevenueAgg[0]?.total || 0;
+
+		// Doanh thu trong năm
+		const yearlyRevenueAgg = await Order.aggregate([
+			{
+				$match: {
+					status: 'success',
+					isPaid: true,
+					paymentTime: {$gte: yearStart, $lte: yearEnd},
+				},
+			},
+			{$group: {_id: null, total: {$sum: '$totalAmount'}}},
+		]);
+		const yearlyRevenue = yearlyRevenueAgg[0]?.total || 0;
+
+		res.json({
+			orderStats: {
+				totalOrders,
+				successOrders,
+				cancelledOrders,
+			},
+			revenueStats: {
+				totalRevenue,
+				dailyRevenue,
+				monthlyRevenue,
+				yearlyRevenue,
+			},
+		});
+	} catch (error) {
+		console.error('Error fetching dashboard stats:', error);
+		res.status(500).json({message: 'Lỗi lấy thống kê dashboard', error: error.message});
+	}
+};
+
+exports.getRevenueChartData = async (req, res) => {
+	try {
+		const currentYear = moment().year();
+
+		const monthlyRevenue = await Order.aggregate([
+			{
+				$match: {
+					status: 'success',
+					isPaid: true,
+					paymentTime: {
+						$gte: new Date(`${currentYear}-01-01`),
+						$lte: new Date(`${currentYear}-12-31`),
+					},
+				},
+			},
+			{
+				$group: {
+					_id: {$month: '$paymentTime'},
+					revenue: {$sum: '$totalAmount'},
+				},
+			},
+			{
+				$sort: {_id: 1},
+			},
+		]);
+
+		// Khởi tạo đầy đủ 12 tháng (kể cả nếu không có doanh thu)
+		const result = Array.from({length: 12}, (_, i) => {
+			const month = (i + 1).toString().padStart(2, '0');
+			const found = monthlyRevenue.find((item) => item._id === i + 1);
+			return {
+				month,
+				revenue: found ? found.revenue : 0,
+			};
+		});
+
+		res.status(200).json(result);
+	} catch (error) {
+		console.error('Lỗi lấy dữ liệu biểu đồ doanh thu:', error);
+		res.status(500).json({message: 'Lỗi server', error: error.message});
+	}
+};
+
+// Chart day
+exports.getRevenueByDayInMonthCurrentYear = async (req, res) => {
+	try {
+		const now = moment();
+		const currentYear = now.year();
+		const currentMonth = now.month(); // 0-based (0 = January)
+		const startOfMonth = moment([currentYear, currentMonth]).startOf('month').toDate();
+		const endOfMonth = moment([currentYear, currentMonth]).endOf('month').toDate();
+
+		const dailyRevenue = await Order.aggregate([
+			{
+				$match: {
+					status: 'success',
+					isPaid: true,
+					paymentTime: {$gte: startOfMonth, $lte: endOfMonth},
+				},
+			},
+			{
+				$group: {
+					// Nhóm theo ngày trong tháng (dayOfMonth)
+					_id: {$dayOfMonth: '$paymentTime'},
+					revenue: {$sum: '$totalAmount'},
+				},
+			},
+			{$sort: {_id: 1}},
+		]);
+
+		const daysInMonth = now.daysInMonth();
+
+		const result = Array.from({length: daysInMonth}, (_, i) => {
+			const day = i + 1;
+			const found = dailyRevenue.find((item) => item._id === day);
+			return {
+				day: `Ngày ${day}`,
+				revenue: found ? found.revenue : 0,
+			};
+		});
+
+		res.json(result);
+	} catch (error) {
+		res.status(500).json({message: 'Lỗi lấy dữ liệu biểu đồ theo ngày trong tháng hiện tại', error: error.message});
+	}
+};
+
+// Chart year
+exports.getRevenueByYear = async (req, res) => {
+	try {
+		const currentYear = moment().year();
+		const startYear = currentYear - 4;
+
+		const yearlyRevenue = await Order.aggregate([
+			{
+				$match: {
+					status: 'success',
+					isPaid: true,
+					paymentTime: {
+						$gte: new Date(`${startYear}-01-01`),
+						$lte: new Date(`${currentYear}-12-31`),
+					},
+				},
+			},
+			{
+				$group: {
+					_id: {$year: '$paymentTime'},
+					revenue: {$sum: '$totalAmount'},
+				},
+			},
+			{$sort: {_id: 1}},
+		]);
+
+		const result = Array.from({length: 5}, (_, i) => {
+			const year = startYear + i;
+			const found = yearlyRevenue.find((item) => item._id === year);
+			return {
+				year: `Năm ${year}`,
+				revenue: found ? found.revenue : 0,
+			};
+		});
+
+		res.json(result);
+	} catch (error) {
+		res.status(500).json({message: 'Lỗi lấy dữ liệu biểu đồ theo năm', error: error.message});
 	}
 };
 
