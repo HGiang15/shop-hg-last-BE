@@ -47,6 +47,9 @@ router.post('/createSize', sizeController.createSize);
  */
 router.get('/getAllSizes', sizeController.getAllSizes);
 
+// Lấy size theo danh mục
+router.get('/by-category/:categoryId', sizeController.getSizesByCategory);
+
 /**
  * @swagger
  * /size/getSizeById/{id}:

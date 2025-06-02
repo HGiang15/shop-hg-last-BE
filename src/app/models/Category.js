@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const CategorySchema = new mongoose.Schema(
+const CategorySchema = new Schema(
 	{
 		name: {
 			type: String,
@@ -10,6 +11,12 @@ const CategorySchema = new mongoose.Schema(
 			type: String,
 			required: true,
 		},
+		sizes: [
+			{
+				type: Schema.Types.ObjectId,
+				ref: 'Size',
+			},
+		],
 	},
 	{timestamps: true}
 );

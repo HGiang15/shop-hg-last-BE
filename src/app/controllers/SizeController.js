@@ -1,3 +1,4 @@
+const Category = require('../models/Category');
 const Size = require('./../models/Size');
 
 // Create
@@ -13,6 +14,22 @@ exports.createSize = async (req, res) => {
 		await newSize.save();
 
 		res.status(201).json({message: 'Tạo kích cỡ thành công', data: newSize});
+	} catch (error) {
+		res.status(500).json({message: error.message});
+	}
+};
+
+exports.getSizesByCategory = async (req, res) => {
+	try {
+		const {categoryId} = req.params;
+
+		const category = await Category.findById(categoryId).populate('sizes');
+
+		if (!category) {
+			return res.status(404).json({message: 'Không tìm thấy danh mục'});
+		}
+
+		res.status(200).json({sizes: category.sizes});
 	} catch (error) {
 		res.status(500).json({message: error.message});
 	}

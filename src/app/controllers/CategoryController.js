@@ -5,6 +5,14 @@ const fs = require('fs').promises;
 exports.createCategory = async (req, res) => {
 	try {
 		const {name, image} = req.body;
+		let sizes = [];
+
+		// sizes after JSON.parse
+		try {
+			sizes = JSON.parse(req.body.sizes);
+		} catch (err) {
+			return res.status(400).json({message: 'Danh sách kích cỡ không hợp lệ (không parse được JSON).'});
+		}
 
 		if (!name) {
 			return res.status(400).json({message: 'Vui lòng nhập tên danh mục!'});
@@ -14,7 +22,11 @@ exports.createCategory = async (req, res) => {
 			return res.status(400).json({message: 'Vui lòng chọn ảnh danh mục!'});
 		}
 
-		const category = new Category({name, image});
+		if (!Array.isArray(sizes)) {
+			return res.status(400).json({message: 'Danh sách kích cỡ không hợp lệ (không phải mảng).'});
+		}
+
+		const category = new Category({name, image, sizes});
 		await category.save();
 
 		res.status(201).json({
@@ -36,7 +48,7 @@ exports.getAllCategories = async (req, res) => {
 		const totalItems = await Category.countDocuments();
 		const totalPages = Math.ceil(totalItems / limit);
 
-		const categories = await Category.find().sort({createdAt: -1}).skip(skip).limit(limit);
+		const categories = await Category.find().sort({createdAt: -1}).skip(skip).limit(limit).populate('sizes');
 
 		const result = categories.map((c) => ({
 			...c.toObject(),
@@ -57,7 +69,7 @@ exports.getAllCategories = async (req, res) => {
 // Get by id
 exports.getCategoryById = async (req, res) => {
 	try {
-		const category = await Category.findById(req.params.id);
+		const category = await Category.findById(req.params.id).populate('sizes');
 		if (!category) return res.status(404).json({message: 'Không tìm thấy danh mục'});
 
 		res.status(200).json({
@@ -90,18 +102,21 @@ exports.getCategoryByName = async (req, res) => {
 exports.updateCategory = async (req, res) => {
 	try {
 		const {id} = req.params;
-		const {name, image} = req.body;
+		let {name, image, sizes} = req.body;
 
-		const category = await Category.findByIdAndUpdate(
-			id,
-			{
-				name: name,
-				image: image,
-			},
-			{
-				new: true,
+		try {
+			if (typeof sizes === 'string') {
+				sizes = JSON.parse(sizes);
 			}
-		);
+		} catch (err) {
+			return res.status(400).json({message: 'Danh sách kích cỡ không hợp lệ (không parse được JSON).'});
+		}
+
+		if (!Array.isArray(sizes)) {
+			return res.status(400).json({message: 'Danh sách kích cỡ không hợp lệ (không phải mảng).'});
+		}
+
+		const category = await Category.findByIdAndUpdate(id, {name, image, sizes}, {new: true});
 
 		if (!category) return res.status(404).json({message: 'Không tìm thấy danh mục'});
 
