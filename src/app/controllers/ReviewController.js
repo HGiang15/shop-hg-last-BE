@@ -8,7 +8,7 @@ exports.getReviewsByProductId = async (req, res) => {
 		const limit = parseInt(req.query.limit) || 10;
 		const skip = (page - 1) * limit;
 
-		const reviews = await Review.find({productId}).sort({createdAt: -1}).skip(skip).limit(limit);
+		const reviews = await Review.find({productId}).populate('userId', 'name avatar').sort({createdAt: -1}).skip(skip).limit(limit);
 
 		const total = await Review.countDocuments({productId});
 
@@ -113,7 +113,7 @@ exports.deleteReview = async (req, res) => {
 		}
 
 		// Kiểm tra quyền người dùng
-		if (review.userId.toString() !== req.user._id.toString()) {
+		if (review.userId.toString() !== req.user._id.toString() && req.user.role !== 0) {
 			return res.status(403).json({message: 'Bạn không có quyền xóa đánh giá này'});
 		}
 
@@ -130,19 +130,54 @@ exports.getAllReviewsForAdmin = async (req, res) => {
 		const page = parseInt(req.query.page) || 1;
 		const limit = parseInt(req.query.limit) || 10;
 		const search = req.query.search || '';
+		const rating = req.query.rating;
+		const sort = req.query.sort;
 
-		const query = {
-			$or: [{name: {$regex: search, $options: 'i'}}, {comment: {$regex: search, $options: 'i'}}],
-		};
+		const matchStage = {};
 
-		const total = await Review.countDocuments(query);
+		if (rating) {
+			matchStage.rating = parseInt(rating);
+		}
 
-		const reviews = await Review.find(query)
-			.populate('productId', 'name') // để hiện tên sản phẩm
-			.populate('userId', 'name email') // để hiện tên người dùng
-			.sort({createdAt: -1})
-			.skip((page - 1) * limit)
-			.limit(limit);
+		const sortOption = sort === 'oldest' ? {createdAt: 1} : {createdAt: -1}; // default: mới nhất
+
+		const pipeline = [
+			{
+				$lookup: {
+					from: 'users',
+					localField: 'userId',
+					foreignField: '_id',
+					as: 'user',
+				},
+			},
+			{$unwind: {path: '$user', preserveNullAndEmptyArrays: true}},
+			{
+				$lookup: {
+					from: 'products',
+					localField: 'productId',
+					foreignField: '_id',
+					as: 'product',
+				},
+			},
+			{$unwind: {path: '$product', preserveNullAndEmptyArrays: true}},
+			{
+				$match: {
+					...matchStage,
+					$or: [{'user.name': {$regex: search, $options: 'i'}}, {comment: {$regex: search, $options: 'i'}}],
+				},
+			},
+			{$sort: sortOption},
+			{
+				$facet: {
+					data: [{$skip: (page - 1) * limit}, {$limit: limit}],
+					totalCount: [{$count: 'count'}],
+				},
+			},
+		];
+
+		const result = await Review.aggregate(pipeline);
+		const reviews = result[0]?.data || [];
+		const total = result[0]?.totalCount[0]?.count || 0;
 
 		res.json({
 			reviews,

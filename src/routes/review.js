@@ -7,13 +7,13 @@ const auth = require('../middleware/auth');
 router.get('/get-reviews-by-product-id/:productId', reviewController.getReviewsByProductId);
 
 // GET:
-router.get('/get-all-reviews-for-admin/:productId', reviewController.getAllReviewsForAdmin);
+router.get('/get-all-reviews-for-admin', reviewController.getAllReviewsForAdmin);
 
 // POST: Gửi đánh giá mới
 router.post('/add-review', auth, reviewController.addReview);
 
 // GET: Chi tiết 1 đánh giá
-router.get('/get-review/:id', auth, reviewController.getReviewById);
+router.get('/get-review-by-id/:id', auth, reviewController.getReviewById);
 
 // PUT: Cập nhật đánh giá
 router.put('/update-review/:id', auth, reviewController.updateReview);
