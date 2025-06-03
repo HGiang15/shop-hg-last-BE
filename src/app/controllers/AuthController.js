@@ -307,6 +307,40 @@ exports.resetPassword = async (req, res) => {
 	}
 };
 
+exports.changePassword = async (req, res) => {
+	try {
+		const userId = req.user._id;
+		const {currentPassword, newPassword} = req.body;
+
+		if (!currentPassword || !newPassword) {
+			return res.status(400).json({status: 'Thất bại', message: 'Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới.'});
+		}
+
+		const user = await User.findById(userId);
+		if (!user) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy người dùng.'});
+		}
+
+		const isMatch = await bcrypt.compare(currentPassword, user.password);
+		if (!isMatch) {
+			return res.status(400).json({status: 'Thất bại', message: 'Mật khẩu hiện tại không đúng.'});
+		}
+
+		if (newPassword.length < 6) {
+			return res.status(400).json({status: 'Thất bại', message: 'Mật khẩu mới phải có ít nhất 6 ký tự.'});
+		}
+
+		const hashedPassword = await bcrypt.hash(newPassword, 10);
+		user.password = hashedPassword;
+		await user.save();
+
+		res.status(200).json({status: 'Thành công', message: 'Đổi mật khẩu thành công!'});
+	} catch (error) {
+		console.error('Lỗi đổi mật khẩu:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi đổi mật khẩu.'});
+	}
+};
+
 exports.getListUser = async (req, res) => {
 	try {
 		const page = parseInt(req.query.page) || 1;
@@ -368,7 +402,7 @@ exports.getUserById = async (req, res) => {
 	try {
 		const {id} = req.params;
 
-		const user = await User.findById(id).select('-password'); // Ẩn password
+		const user = await User.findById(id).select('-password');
 		if (!user) {
 			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy người dùng.'});
 		}
@@ -394,9 +428,37 @@ exports.editUser = async (req, res) => {
 			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy người dùng để cập nhật.'});
 		}
 
-		res.status(200).json({status: 'Thành công', message: 'Cập nhật người dùng thành công.', data: updatedUser});
+		res.status(200).json({status: 'Thành công', message: 'Cập nhật thông tin thành công.', data: updatedUser});
 	} catch (error) {
 		console.error('Lỗi cập nhật người dùng:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi máy chủ.'});
+	}
+};
+
+exports.getMe = async (req, res) => {
+	try {
+		const user = await User.findById(req.user._id).select('-password');
+		if (!user) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy người dùng.'});
+		}
+
+		res.status(200).json({
+			status: 'Thành công',
+			data: {
+				id: user._id,
+				name: user.name,
+				email: user.email,
+				phone: user.phone,
+				dateOfBirth: user.dateOfBirth,
+				gender: user.gender,
+				avatar: user.avatar,
+				role: user.role,
+				status: user.status,
+				provider: user.provider,
+			},
+		});
+	} catch (error) {
+		console.error('Lỗi lấy thông tin người dùng:', error);
 		res.status(500).json({status: 'Thất bại', message: 'Lỗi máy chủ.'});
 	}
 };

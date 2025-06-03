@@ -35,6 +35,24 @@ exports.updateAddress = async (req, res) => {
 	}
 };
 
+exports.getUserAddressDetail = async (req, res) => {
+	try {
+		const {id} = req.params;
+		const address = await UserAddress.findOne({
+			_id: id,
+			userId: req.user._id,
+		});
+
+		if (!address) {
+			return res.status(404).json({message: 'Không tìm thấy địa chỉ'});
+		}
+
+		res.json(address);
+	} catch (err) {
+		res.status(500).json({error: err.message});
+	}
+};
+
 exports.setDefaultAddress = async (req, res) => {
 	try {
 		const {id} = req.params;

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('./../app/controllers/AuthController');
+const auth = require('../middleware/auth');
 
 /**
  * @swagger
@@ -164,6 +165,8 @@ router.post('/forgotPassword', authController.forgotPassword);
  */
 router.post('/resetPassword', authController.resetPassword);
 
+router.post('/change-password', auth, authController.changePassword);
+
 /**
  * @swagger
  * /api/user/list:
@@ -239,6 +242,8 @@ router.put('/editUser/:id', authController.editUser);
 router.put('/status/:id', authController.updateUserStatus);
 
 router.put('/role/:id', authController.updateUserRole);
+
+router.get('/me', auth, authController.getMe);
 
 // --- Google Login ---
 /**

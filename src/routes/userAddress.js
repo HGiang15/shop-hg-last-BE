@@ -6,6 +6,7 @@ const auth = require('../middleware/auth');
 router.post('/createAddress', auth, userAddressController.createAddress);
 router.get('/getUserAddresses', auth, userAddressController.getUserAddresses);
 router.put('/updateAddress/:id', auth, userAddressController.updateAddress);
+router.get('/getUserAddressDetail/:id', auth, userAddressController.getUserAddressDetail);
 router.put('/setDefaultAddress/:id', auth, userAddressController.setDefaultAddress);
 router.delete('/deleteAddress/:id', auth, userAddressController.deleteAddress);
 
