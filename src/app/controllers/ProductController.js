@@ -39,12 +39,12 @@ exports.createProduct = async (req, res) => {
 			description,
 			detailDescription,
 			isFeatured: isFeatured === 'true' || isFeatured === true,
-			status: 'active',
+			status: ['active', 'inactive', 'discontinued'].includes(req.body.status) ? req.body.status : 'active',
 			totalSold: 0,
 		});
 
 		await product.save();
-
+		console.log('Dữ liệu nhận được:', req.body);
 		res.status(201).json({
 			message: 'Tạo sản phẩm thành công',
 			data: product,
