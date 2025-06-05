@@ -9,6 +9,7 @@ const orderRouter = require('./order');
 const locationRouter = require('./location');
 const reviewRouter = require('./review');
 const uploadRouter = require('./upload');
+const voucherRouter = require('./voucher');
 
 function route(app) {
 	app.use('/api/user', authRouter);
@@ -21,6 +22,7 @@ function route(app) {
 	app.use('/api/user-addresses', userAddressRouter);
 	app.use('/api/locations', locationRouter);
 	app.use('/api/review', reviewRouter);
+	app.use('/api/voucher', voucherRouter);
 	app.use('/api/upload', uploadRouter);
 }
 

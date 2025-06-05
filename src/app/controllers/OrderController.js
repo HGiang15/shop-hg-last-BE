@@ -1,4 +1,5 @@
 const Order = require('../models/Order');
+const Voucher = require('../models/Voucher');
 const Product = require('../models/Product');
 const moment = require('moment');
 
@@ -16,7 +17,8 @@ const vnpay = new VNPay({
 
 exports.createOrder = async (req, res) => {
 	try {
-		const {shippingAddress, items, note = ''} = req.body;
+		const {shippingAddress, items, note = '', voucherCode} = req.body;
+		const userId = req.user._id;
 
 		if (!items || !Array.isArray(items) || items.length === 0) {
 			return res.status(400).json({message: 'Danh sách sản phẩm không hợp lệ'});
@@ -47,13 +49,62 @@ exports.createOrder = async (req, res) => {
 			};
 		});
 
-		const totalAmount = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+		let totalAmount = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+
+		let discountAmount = 0;
+		let voucherId = null;
+
+		//   ÁP DỤNG VOUCHER nếu có
+		if (voucherCode) {
+			const voucher = await Voucher.findOne({code: voucherCode, isActive: true});
+			// Kiểm tra voucher hợp lệ
+			if (!voucher || !voucher.isActive || voucher.quantity <= 0) {
+				return res.status(400).json({message: 'Mã giảm giá không hợp lệ hoặc đã hết lượt sử dụng'});
+			}
+
+			// Kiểm tra thời gian hiệu lực
+			const now = new Date();
+			if (now < voucher.startDate || now > voucher.endDate) {
+				return res.status(400).json({message: 'Mã giảm giá đã hết hạn hoặc chưa bắt đầu'});
+			}
+
+			// Kiểm tra giá trị đơn hàng tối thiểu
+			if (totalAmount < voucher.minOrderValue) {
+				return res.status(400).json({message: `Đơn hàng chưa đạt giá trị tối thiểu ${voucher.minOrderValue} để dùng mã`});
+			}
+
+			// Kiểm tra xem user đã dùng voucher này chưa
+			if (voucher.usedBy.includes(userId)) {
+				return res.status(400).json({message: 'Bạn đã sử dụng mã này rồi'});
+			}
+
+			// Tính số tiền giảm
+			if (voucher.discountType === 'fixed') {
+				discountAmount = voucher.discountValue;
+			} else if (voucher.discountType === 'percentage') {
+				discountAmount = (voucher.discountValue / 100) * totalAmount;
+				if (voucher.maxDiscount) {
+					discountAmount = Math.min(discountAmount, voucher.maxDiscount);
+				}
+			}
+
+			// Cập nhật số lượt dùng và người dùng đã sử dụng voucher
+			voucher.usedBy.push(userId);
+			voucher.quantity -= 1;
+			await voucher.save();
+
+			voucherId = voucher._id;
+		}
+		const finalAmount = totalAmount - discountAmount;
 
 		const order = await Order.create({
-			userId: req.user._id,
+			userId,
 			shippingAddress,
 			items: orderItems,
 			totalAmount,
+			discountAmount,
+			finalAmount,
+			voucherId,
 			note,
 		});
 
