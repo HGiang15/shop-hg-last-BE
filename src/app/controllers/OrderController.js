@@ -81,7 +81,7 @@ exports.createOrder = async (req, res) => {
 			// Tính số tiền giảm
 			if (voucher.discountType === 'fixed') {
 				discountAmount = voucher.discountValue;
-			} else if (voucher.discountType === 'percentage') {
+			} else if (voucher.discountType === 'percent') {
 				discountAmount = (voucher.discountValue / 100) * totalAmount;
 				if (voucher.maxDiscount) {
 					discountAmount = Math.min(discountAmount, voucher.maxDiscount);
@@ -95,7 +95,6 @@ exports.createOrder = async (req, res) => {
 
 			voucherId = voucher._id;
 		}
-		const finalAmount = totalAmount - discountAmount;
 
 		const order = await Order.create({
 			userId,
@@ -103,11 +102,12 @@ exports.createOrder = async (req, res) => {
 			items: orderItems,
 			totalAmount,
 			discountAmount,
-			finalAmount,
+			finalAmount: totalAmount - discountAmount,
 			voucherId,
 			note,
 		});
 
+		await order.save();
 		res.status(201).json(order);
 	} catch (error) {
 		console.error('Order creation error:', error);
