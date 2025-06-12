@@ -56,7 +56,6 @@ exports.getAvailableVouchersForUser = async (req, res) => {
 			quantity: {$gt: 0},
 			showAt: {$lte: now}, // đã đến lúc hiển thị
 			endDate: {$gte: now}, // chưa hết hạn
-			usedBy: {$ne: userId}, // chưa dùng
 		}).sort({createdAt: -1});
 
 		const result = vouchers.map((v) => ({

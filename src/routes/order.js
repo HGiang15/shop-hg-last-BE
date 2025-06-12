@@ -16,5 +16,6 @@ router.get('/revenue-by-year', auth, orderController.getRevenueByYear);
 
 router.post('/create-payment-url', auth, orderController.createPaymentUrl);
 router.get('/vnpay-return', orderController.returnPayment);
+router.get('/transaction-history', auth, orderController.getOrderHistory);
 
 module.exports = router;

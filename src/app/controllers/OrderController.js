@@ -73,11 +73,6 @@ exports.createOrder = async (req, res) => {
 				return res.status(400).json({message: `Đơn hàng chưa đạt giá trị tối thiểu ${voucher.minOrderValue} để dùng mã`});
 			}
 
-			// Kiểm tra xem user đã dùng voucher này chưa
-			if (voucher.usedBy.includes(userId)) {
-				return res.status(400).json({message: 'Bạn đã sử dụng mã này rồi'});
-			}
-
 			// Tính số tiền giảm
 			if (voucher.discountType === 'fixed') {
 				discountAmount = voucher.discountValue;
@@ -89,10 +84,8 @@ exports.createOrder = async (req, res) => {
 			}
 
 			// Cập nhật số lượt dùng và người dùng đã sử dụng voucher
-			voucher.usedBy.push(userId);
 			voucher.quantity -= 1;
 			await voucher.save();
-
 			voucherId = voucher._id;
 		}
 
@@ -485,5 +478,46 @@ exports.returnPayment = async (req, res) => {
 	} catch (error) {
 		console.error('Lỗi xử lý returnPayment:', error);
 		return res.status(500).json({message: 'Lỗi máy chủ khi xử lý thanh toán', error: error.message});
+	}
+};
+
+// Transaction history
+exports.getOrderHistory = async (req, res) => {
+	try {
+		const userId = req.user._id;
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 10;
+		const skip = (page - 1) * limit;
+
+		const {status, isPaid, paymentMethod, sort = 'desc'} = req.query;
+
+		const query = {userId};
+
+		if (status) query.status = status;
+		if (isPaid === 'true') query.isPaid = true;
+		if (isPaid === 'false') query.isPaid = false;
+		if (paymentMethod) query.paymentMethod = paymentMethod;
+
+		const [orders, total] = await Promise.all([
+			Order.find(query)
+				.sort({createdAt: sort === 'asc' ? 1 : -1})
+				.skip(skip)
+				.limit(limit)
+				.populate('shippingAddress')
+				.populate('voucherId')
+				.lean(),
+			Order.countDocuments(query),
+		]);
+
+		res.status(200).json({
+			orders,
+			page,
+			limit,
+			totalPages: Math.ceil(total / limit),
+			total,
+		});
+	} catch (error) {
+		console.error('Lỗi lấy lịch sử đơn hàng:', error);
+		res.status(500).json({message: 'Lấy lịch sử giao dịch thất bại', error: error.message});
 	}
 };
