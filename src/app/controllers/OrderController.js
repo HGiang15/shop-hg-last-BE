@@ -17,7 +17,7 @@ const vnpay = new VNPay({
 
 exports.createOrder = async (req, res) => {
 	try {
-		const {shippingAddress, items, note = '', voucherCode} = req.body;
+		const {shippingAddress, items, note = '', voucherCode, paymentMethod} = req.body;
 		const userId = req.user._id;
 
 		if (!items || !Array.isArray(items) || items.length === 0) {
@@ -105,6 +105,7 @@ exports.createOrder = async (req, res) => {
 			finalAmount: totalAmount - discountAmount,
 			voucherId,
 			note,
+			paymentMethod,
 		});
 
 		await order.save();

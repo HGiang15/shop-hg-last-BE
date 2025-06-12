@@ -54,12 +54,17 @@ exports.getAvailableVouchersForUser = async (req, res) => {
 		const vouchers = await Voucher.find({
 			isActive: true,
 			quantity: {$gt: 0},
-			startDate: {$lte: now},
-			endDate: {$gte: now},
+			showAt: {$lte: now}, // đã đến lúc hiển thị
+			endDate: {$gte: now}, // chưa hết hạn
 			usedBy: {$ne: userId}, // chưa dùng
 		}).sort({createdAt: -1});
 
-		res.json(vouchers);
+		const result = vouchers.map((v) => ({
+			...v.toObject(),
+			canUse: now >= v.startDate, // true nếu đã có thể dùng, false nếu chưa đến thời gian áp dụng
+		}));
+
+		res.json(result);
 	} catch (err) {
 		console.error(err);
 		res.status(500).json({message: 'Lỗi khi lấy danh sách voucher khả dụng'});

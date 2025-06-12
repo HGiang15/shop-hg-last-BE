@@ -42,7 +42,8 @@ const OrderSchema = new mongoose.Schema(
 		},
 		paymentMethod: {
 			type: String,
-			enum: ['cod', 'vnpay', 'paypal'],
+			enum: ['cod', 'vnpay'],
+			required: true,
 		},
 		paymentTime: {
 			type: Date,
