@@ -53,7 +53,7 @@ const OrderSchema = new mongoose.Schema(
 			default: '',
 		},
 		discountAmount: {type: Number, default: 0},
-		finalAmount: {type: Number}, // tổng sau giảm
+		finalAmount: {type: Number},
 		voucherId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Voucher',
