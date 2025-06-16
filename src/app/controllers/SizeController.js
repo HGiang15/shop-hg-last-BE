@@ -121,3 +121,23 @@ exports.deleteSize = async (req, res) => {
 		res.status(500).json({message: error.message});
 	}
 };
+
+// Delete multiple Sizes
+exports.deleteMultipleSizes = async (req, res) => {
+	try {
+		const {ids} = req.body;
+
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return res.status(400).json({message: 'Vui lòng cung cấp mảng ID cần xóa'});
+		}
+
+		const result = await Size.deleteMany({_id: {$in: ids}});
+
+		res.status(200).json({
+			message: `Đã xóa ${result.deletedCount} kích cỡ`,
+			deletedCount: result.deletedCount,
+		});
+	} catch (error) {
+		res.status(500).json({message: error.message});
+	}
+};

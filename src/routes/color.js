@@ -133,4 +133,6 @@ router.put('/updateColor/:id', colorController.updateColor);
  */
 router.delete('/deleteColor/:id', colorController.deleteColor);
 
+router.delete('/delete-multiple', colorController.deleteMultipleColors);
+
 module.exports = router;

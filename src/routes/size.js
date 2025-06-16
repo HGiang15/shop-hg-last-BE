@@ -132,4 +132,7 @@ router.put('/updateSize/:id', sizeController.updateSize);
  */
 router.delete('/deleteSize/:id', sizeController.deleteSize);
 
+// Xóa nhiều kích cỡ
+router.delete('/delete-multiple', sizeController.deleteMultipleSizes);
+
 module.exports = router;

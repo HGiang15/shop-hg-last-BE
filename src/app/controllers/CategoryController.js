@@ -156,3 +156,26 @@ exports.deleteCategory = async (req, res) => {
 		res.status(500).json({message: err.message});
 	}
 };
+
+exports.deleteMultipleCategories = async (req, res) => {
+	try {
+		const {ids} = req.body;
+
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return res.status(400).json({message: 'Vui lòng cung cấp mảng ID cần xoá'});
+		}
+
+		// Lấy danh sách các danh mục để xóa ảnh
+		const categories = await Category.find({_id: {$in: ids}});
+
+		// Xóa trong database
+		const result = await Category.deleteMany({_id: {$in: ids}});
+
+		res.status(200).json({
+			message: `Đã xoá ${result.deletedCount} danh mục`,
+			deletedCount: result.deletedCount,
+		});
+	} catch (err) {
+		res.status(500).json({message: err.message});
+	}
+};

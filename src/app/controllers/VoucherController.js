@@ -162,3 +162,24 @@ exports.deleteVoucher = async (req, res) => {
 		res.status(500).json({message: 'Xoá voucher thất bại'});
 	}
 };
+
+// DELETE many vouchers
+exports.deleteMultipleVouchers = async (req, res) => {
+	try {
+		const {ids} = req.body;
+
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return res.status(400).json({message: 'Vui lòng cung cấp mảng ID voucher cần xóa'});
+		}
+
+		const result = await Voucher.deleteMany({_id: {$in: ids}});
+
+		res.status(200).json({
+			message: `Đã xóa ${result.deletedCount} voucher`,
+			deletedCount: result.deletedCount,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({message: 'Xóa nhiều voucher thất bại', error: error.message});
+	}
+};

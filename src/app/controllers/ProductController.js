@@ -5,10 +5,11 @@ const path = require('path');
 // Create
 exports.createProduct = async (req, res) => {
 	try {
-		const {code, name, category, colors, price, description, detailDescription, isFeatured, images} = req.body;
+		const {code, name, category, colors, price, description, detailDescription, isFeatured, images, status} = req.body;
 
 		const quantityBySizeString = req.body.quantityBySize;
 
+		// Parse các field dạng JSON string
 		let parsedCategory = {};
 		let parsedColors = [];
 		let parsedImages = [];
@@ -19,10 +20,36 @@ exports.createProduct = async (req, res) => {
 			parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors;
 			parsedImages = typeof images === 'string' ? JSON.parse(images) : images;
 			parsedQuantityBySize = typeof quantityBySizeString === 'string' ? JSON.parse(quantityBySizeString) : quantityBySizeString;
-		} catch (error) {
-			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ (category/colors/quantityBySize)'});
+		} catch (err) {
+			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ (category/colors/quantityBySize/images)'});
 		}
 
+		//  Validate dữ liệu bắt buộc
+		// if (!code || typeof code !== 'string' || !code.trim()) {
+		// 	return res.status(400).json({message: 'Mã sản phẩm không được để trống!'});
+		// }
+
+		if (!name || typeof name !== 'string' || !name.trim()) {
+			return res.status(400).json({message: 'Tên sản phẩm không được để trống!'});
+		}
+
+		if (!parsedCategory?.categoryId || !parsedCategory?.name) {
+			return res.status(400).json({message: 'Danh mục sản phẩm không hợp lệ!'});
+		}
+
+		if (!Array.isArray(parsedColors) || parsedColors.length === 0) {
+			return res.status(400).json({message: 'Phải chọn ít nhất 1 màu cho sản phẩm!'});
+		}
+
+		if (!price || isNaN(price) || Number(price) <= 0) {
+			return res.status(400).json({message: 'Giá sản phẩm không hợp lệ!'});
+		}
+
+		if (!Array.isArray(parsedImages) || parsedImages.length === 0) {
+			return res.status(400).json({message: 'Phải upload ít nhất 1 hình ảnh cho sản phẩm!'});
+		}
+
+		// ✅ Xử lý quantity & status
 		parsedQuantityBySize = parsedQuantityBySize.map((item) => ({
 			...item,
 			quantity: Number(item.quantity),
@@ -30,13 +57,12 @@ exports.createProduct = async (req, res) => {
 
 		const totalQuantity = parsedQuantityBySize.reduce((sum, item) => sum + item.quantity, 0);
 
-		let status;
-		if (['active', 'inactive', 'discontinued'].includes(req.body.status)) {
-			status = req.body.status;
-		} else {
-			status = totalQuantity === 0 ? 'inactive' : 'active';
+		let resolvedStatus = status;
+		if (!['active', 'inactive', 'discontinued'].includes(status)) {
+			resolvedStatus = totalQuantity === 0 ? 'inactive' : 'active';
 		}
 
+		// ✅ Tạo đối tượng sản phẩm
 		const product = new Product({
 			code,
 			name,
@@ -48,19 +74,22 @@ exports.createProduct = async (req, res) => {
 			description,
 			detailDescription,
 			isFeatured: isFeatured === 'true' || isFeatured === true,
-			status,
+			status: resolvedStatus,
 			totalSold: 0,
 		});
 
 		await product.save();
-		console.log('Dữ liệu nhận được:', req.body);
+
 		res.status(201).json({
 			message: 'Tạo sản phẩm thành công',
 			data: product,
 		});
 	} catch (error) {
-		console.error(error);
-		res.status(500).json({error: error.message});
+		console.error('Lỗi tạo sản phẩm:', error);
+		res.status(500).json({
+			message: 'Đã xảy ra lỗi khi tạo sản phẩm!',
+			error: error.message,
+		});
 	}
 };
 
@@ -146,12 +175,38 @@ exports.updateProduct = async (req, res) => {
 		try {
 			parsedCategory = typeof category === 'string' ? JSON.parse(category) : category;
 			parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors;
-			parsedQuantityBySize = typeof quantityBySize === 'string' ? JSON.parse(quantityBySize) : quantityBySize;
 			parsedImages = typeof images === 'string' ? JSON.parse(images) : images;
-		} catch (error) {
-			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ'});
+			parsedQuantityBySize = typeof quantityBySize === 'string' ? JSON.parse(quantityBySize) : quantityBySize;
+		} catch (err) {
+			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ (category/colors/quantityBySize/images)'});
 		}
 
+		// Validate dữ liệu bắt buộc
+		// if (!code || typeof code !== 'string' || !code.trim()) {
+		// 	return res.status(400).json({message: 'Mã sản phẩm không được để trống!'});
+		// }
+
+		if (!name || typeof name !== 'string' || !name.trim()) {
+			return res.status(400).json({message: 'Tên sản phẩm không được để trống!'});
+		}
+
+		if (!parsedCategory?.categoryId || !parsedCategory?.name) {
+			return res.status(400).json({message: 'Danh mục sản phẩm không hợp lệ!'});
+		}
+
+		if (!Array.isArray(parsedColors) || parsedColors.length === 0) {
+			return res.status(400).json({message: 'Phải chọn ít nhất 1 màu cho sản phẩm!'});
+		}
+
+		if (!price || isNaN(price) || Number(price) <= 0) {
+			return res.status(400).json({message: 'Giá sản phẩm không hợp lệ!'});
+		}
+
+		if (!Array.isArray(parsedImages) || parsedImages.length === 0) {
+			return res.status(400).json({message: 'Phải có ít nhất 1 hình ảnh cho sản phẩm!'});
+		}
+
+		// Xử lý số lượng size
 		parsedQuantityBySize = parsedQuantityBySize.map((item) => ({
 			...item,
 			quantity: Number(item.quantity),
@@ -159,6 +214,13 @@ exports.updateProduct = async (req, res) => {
 
 		const totalQuantity = parsedQuantityBySize.reduce((sum, item) => sum + item.quantity, 0);
 
+		const resolvedStatus = ['active', 'inactive', 'discontinued'].includes(status)
+			? status
+			: totalQuantity === 0
+			? 'inactive'
+			: 'active';
+
+		// Tạo object update
 		const updateData = {
 			code,
 			name,
@@ -170,7 +232,7 @@ exports.updateProduct = async (req, res) => {
 			detailDescription,
 			images: parsedImages,
 			isFeatured: isFeatured === 'true' || isFeatured === true,
-			status: ['active', 'inactive', 'discontinued'].includes(status) ? status : totalQuantity === 0 ? 'inactive' : 'active',
+			status: resolvedStatus,
 		};
 
 		const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {new: true});
@@ -180,8 +242,8 @@ exports.updateProduct = async (req, res) => {
 			data: updatedProduct,
 		});
 	} catch (error) {
-		console.error(error);
-		res.status(500).json({message: error.message});
+		console.error('Lỗi cập nhật sản phẩm:', error);
+		res.status(500).json({message: 'Đã xảy ra lỗi khi cập nhật sản phẩm!', error: error.message});
 	}
 };
 

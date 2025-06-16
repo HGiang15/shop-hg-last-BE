@@ -24,4 +24,7 @@ router.put('/update-review/:id', auth, reviewController.updateReview);
 // DELETE: Xóa đánh giá
 router.delete('/delete-review/:id', auth, reviewController.deleteReview);
 
+// DELETE: Xóa nhiều đánh giá
+router.delete('/delete-multiple-reviews', reviewController.deleteMultipleReviews);
+
 module.exports = router;

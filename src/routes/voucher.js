@@ -10,5 +10,6 @@ router.get('/getAvailableVouchersForUser', auth, voucherController.getAvailableV
 router.get('/getVoucherById/:id', auth, voucherController.getVoucherById);
 router.put('/updateVoucher/:id', auth, voucherController.updateVoucher);
 router.delete('/deleteVoucher/:id', auth, voucherController.deleteVoucher);
+router.delete('/deleteMultipleVouchers', auth, voucherController.deleteMultipleVouchers);
 
 module.exports = router;

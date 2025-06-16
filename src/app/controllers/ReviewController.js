@@ -190,6 +190,25 @@ exports.deleteReview = async (req, res) => {
 	}
 };
 
+exports.deleteMultipleReviews = async (req, res) => {
+	try {
+		const {ids} = req.body;
+
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return res.status(400).json({message: 'Vui lòng cung cấp mảng ID cần xóa'});
+		}
+
+		const result = await Review.deleteMany({_id: {$in: ids}});
+
+		res.status(200).json({
+			message: `Đã xóa ${result.deletedCount} đánh giá`,
+			deletedCount: result.deletedCount,
+		});
+	} catch (error) {
+		res.status(500).json({message: error.message});
+	}
+};
+
 exports.getAllReviewsForAdmin = async (req, res) => {
 	try {
 		const page = parseInt(req.query.page) || 1;
