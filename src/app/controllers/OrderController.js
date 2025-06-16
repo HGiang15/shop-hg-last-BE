@@ -6,12 +6,12 @@ const moment = require('moment');
 const {VNPay, ignoreLogger, ProductCode, VnpLocale, dateFormat, VerifyReturnUrl} = require('vnpay');
 
 const vnpay = new VNPay({
-	// tmnCode: process.env.VNP_TMNCODE,
-	// secureSecret: process.env.VNP_HASH_SECRET,
-	// vnpayHost: process.env.VNP_URL,
-	tmnCode: '3ODON5LR',
-	secureSecret: 'XMQALCELHRH7FLQHPT45NUGQJ9DXTLZH',
-	vnpayHost: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
+	tmnCode: process.env.VNP_TMNCODE,
+	secureSecret: process.env.VNP_HASH_SECRET,
+	vnpayHost: process.env.VNP_URL,
+	// tmnCode: '3ODON5LR',
+	// secureSecret: 'XMQALCELHRH7FLQHPT45NUGQJ9DXTLZH',
+	// vnpayHost: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
 	testMode: true,
 	hashAlgorithm: 'SHA512',
 	enableLog: true,
