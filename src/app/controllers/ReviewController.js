@@ -37,13 +37,6 @@ exports.addReview = async (req, res) => {
 			});
 		}
 
-		if (rating < 1 || rating > 5) {
-			return res.status(400).json({
-				errorCode: 'REVIEW_INVALID_RATING',
-				message: 'Số sao phải từ 1 đến 5',
-			});
-		}
-
 		if (await isProfane(comment)) {
 			return res.status(400).json({
 				errorCode: 'REVIEW_PROFANE_COMMENT',
@@ -92,6 +85,31 @@ exports.addReview = async (req, res) => {
 	}
 };
 
+// Lấy tất cả đánh giả của 1 người dùng
+exports.getReviewsByUser = async (req, res) => {
+	try {
+		const userId = req.user._id;
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 10;
+		const skip = (page - 1) * limit;
+
+		const reviews = await Review.find({userId}).populate('productId', 'name images').sort({createdAt: -1}).skip(skip).limit(limit);
+
+		const total = await Review.countDocuments({userId});
+
+		res.json({
+			reviews,
+			total,
+			page,
+			totalPages: Math.ceil(total / limit),
+		});
+	} catch (error) {
+		console.error('Lỗi khi lấy đánh giá của người dùng:', error);
+		res.status(500).json({message: 'Lỗi server khi lấy đánh giá của người dùng'});
+	}
+};
+
+// chi tiết đánh giá bên Admin
 exports.getReviewById = async (req, res) => {
 	try {
 		const {id} = req.params;

@@ -15,6 +15,9 @@ router.post('/add-review', auth, reviewController.addReview);
 // GET: Chi tiết 1 đánh giá
 router.get('/get-review-by-id/:id', auth, reviewController.getReviewById);
 
+// GET: Lấy tất cả đánh giá của một người dùng
+router.get('/get-reviews-by-user/me', auth, reviewController.getReviewsByUser);
+
 // PUT: Cập nhật đánh giá
 router.put('/update-review/:id', auth, reviewController.updateReview);
 
