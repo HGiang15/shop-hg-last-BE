@@ -1,5 +1,7 @@
 const Review = require('../models/Review');
 const Product = require('../models/Product');
+const {isProfane} = require('../../utils/filterBadWords');
+const Order = require('../models/Order');
 
 exports.getReviewsByProductId = async (req, res) => {
 	try {
@@ -28,35 +30,65 @@ exports.addReview = async (req, res) => {
 	try {
 		const {productId, rating, comment} = req.body;
 
-		// Validate đầu vào
 		if (!productId || !rating || !comment) {
-			return res.status(400).json({message: 'Thiếu thông tin đánh giá'});
-		}
-		if (rating < 1 || rating > 5) {
-			return res.status(400).json({message: 'Số sao phải từ 1 đến 5'});
+			return res.status(400).json({
+				errorCode: 'REVIEW_MISSING_FIELDS',
+				message: 'Thiếu thông tin đánh giá',
+			});
 		}
 
-		// Kiểm tra sản phẩm tồn tại
+		if (rating < 1 || rating > 5) {
+			return res.status(400).json({
+				errorCode: 'REVIEW_INVALID_RATING',
+				message: 'Số sao phải từ 1 đến 5',
+			});
+		}
+
+		if (await isProfane(comment)) {
+			return res.status(400).json({
+				errorCode: 'REVIEW_PROFANE_COMMENT',
+				message: 'Nội dung đánh giá chứa từ ngữ không phù hợp',
+			});
+		}
+
 		const product = await Product.findById(productId);
 		if (!product) {
-			return res.status(404).json({message: 'Không tìm thấy sản phẩm'});
+			return res.status(404).json({
+				errorCode: 'PRODUCT_NOT_FOUND',
+				message: 'Không tìm thấy sản phẩm',
+			});
+		}
+
+		const hasPurchased = await Order.exists({
+			userId: req.user._id,
+			'items.productId': productId,
+			status: 'success',
+			isPaid: true,
+		});
+
+		if (!hasPurchased) {
+			return res.status(403).json({
+				errorCode: 'REVIEW_NOT_ELIGIBLE',
+				message: 'Bạn cần mua thành công sản phẩm này để được đánh giá',
+			});
 		}
 
 		const newReview = new Review({
 			productId,
-			userId: req.user._id, // ⬅️ Từ token
-			name: req.user.name, // ⬅️ Từ token
+			userId: req.user._id,
+			name: req.user.name,
 			rating,
 			comment,
 		});
-
-		console.log('User from token:', req.user);
 
 		await newReview.save();
 		res.status(201).json(newReview);
 	} catch (error) {
 		console.error('Lỗi khi thêm đánh giá:', error);
-		res.status(500).json({message: 'Lỗi server khi gửi đánh giá'});
+		res.status(500).json({
+			errorCode: 'REVIEW_SERVER_ERROR',
+			message: 'Lỗi server khi gửi đánh giá',
+		});
 	}
 };
 
@@ -84,12 +116,24 @@ exports.updateReview = async (req, res) => {
 
 		const review = await Review.findById(id);
 		if (!review) {
-			return res.status(404).json({message: 'Không tìm thấy đánh giá'});
+			return res.status(404).json({
+				errorCode: 'REVIEW_NOT_FOUND',
+				message: 'Không tìm thấy đánh giá',
+			});
 		}
 
-		// Kiểm tra quyền người dùng
 		if (review.userId.toString() !== req.user._id.toString()) {
-			return res.status(403).json({message: 'Bạn không có quyền sửa đánh giá này'});
+			return res.status(403).json({
+				errorCode: 'REVIEW_PERMISSION_DENIED',
+				message: 'Bạn không có quyền sửa đánh giá này',
+			});
+		}
+
+		if (comment && (await isProfane(comment))) {
+			return res.status(400).json({
+				errorCode: 'REVIEW_PROFANE_COMMENT',
+				message: 'Nội dung đánh giá chứa từ ngữ không phù hợp',
+			});
 		}
 
 		review.rating = rating ?? review.rating;
@@ -99,7 +143,10 @@ exports.updateReview = async (req, res) => {
 		res.json(review);
 	} catch (error) {
 		console.error('Lỗi khi cập nhật đánh giá:', error);
-		res.status(500).json({message: 'Lỗi server khi cập nhật đánh giá'});
+		res.status(500).json({
+			errorCode: 'REVIEW_SERVER_ERROR',
+			message: 'Lỗi server khi cập nhật đánh giá',
+		});
 	}
 };
 

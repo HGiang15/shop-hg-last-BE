@@ -6,9 +6,12 @@ const moment = require('moment');
 const {VNPay, ignoreLogger, ProductCode, VnpLocale, dateFormat, VerifyReturnUrl} = require('vnpay');
 
 const vnpay = new VNPay({
-	tmnCode: process.env.VNP_TMNCODE,
-	secureSecret: process.env.VNP_HASH_SECRET,
-	vnpayHost: process.env.VNP_URL,
+	// tmnCode: process.env.VNP_TMNCODE,
+	// secureSecret: process.env.VNP_HASH_SECRET,
+	// vnpayHost: process.env.VNP_URL,
+	tmnCode: '3ODON5LR',
+	secureSecret: 'XMQALCELHRH7FLQHPT45NUGQJ9DXTLZH',
+	vnpayHost: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
 	testMode: true,
 	hashAlgorithm: 'SHA512',
 	enableLog: true,
@@ -29,7 +32,7 @@ exports.createOrder = async (req, res) => {
 
 		const productMap = {};
 		products.forEach((product) => {
-			productMap[product._id] = product;
+			productMap[product._id.toString()] = product;
 		});
 
 		const orderItems = items.map((item) => {
@@ -89,6 +92,26 @@ exports.createOrder = async (req, res) => {
 			voucherId = voucher._id;
 		}
 
+		// ✅ Giảm số lượng tồn kho theo size
+		for (const item of orderItems) {
+			const product = productMap[item.productId];
+			const quantityEntry = product.quantityBySize.find((q) => q.name.toLowerCase().trim() === item.size.toLowerCase().trim());
+
+			if (!quantityEntry) {
+				return res.status(400).json({message: `Không tìm thấy tồn kho cho sản phẩm ${item.name}, size ${item.size}`});
+			}
+
+			if (quantityEntry.quantity < item.quantity) {
+				return res.status(400).json({
+					message: `Sản phẩm ${item.name}, size ${item.size} không đủ hàng (còn lại ${quantityEntry.quantity})`,
+				});
+			}
+
+			quantityEntry.quantity -= item.quantity;
+			// product.totalSold += item.quantity;
+			await product.save();
+		}
+
 		const order = await Order.create({
 			userId,
 			shippingAddress,
@@ -101,7 +124,6 @@ exports.createOrder = async (req, res) => {
 			paymentMethod,
 		});
 
-		await order.save();
 		res.status(201).json(order);
 	} catch (error) {
 		console.error('Order creation error:', error);
@@ -182,10 +204,62 @@ exports.updateStatus = async (req, res) => {
 			return res.status(400).json({message: 'Trạng thái không hợp lệ'});
 		}
 
-		const updated = await Order.findByIdAndUpdate(id, {status}, {new: true}).populate('shippingAddress');
+		const order = await Order.findById(id);
+		if (!order) {
+			return res.status(404).json({message: 'Không tìm thấy đơn hàng'});
+		}
 
-		res.json(updated);
+		const currentStatus = order.status;
+
+		// ✅ Nếu huỷ đơn (và đơn chưa bị huỷ trước đó)
+		const isCancelling = status === 'cancelled' && currentStatus !== 'cancelled';
+		if (isCancelling) {
+			for (const item of order.items) {
+				const product = await Product.findById(item.productId);
+				if (!product) continue;
+
+				const quantityEntry = product.quantityBySize.find((q) => q.name.toLowerCase().trim() === item.size.toLowerCase().trim());
+
+				if (quantityEntry) {
+					quantityEntry.quantity += item.quantity;
+				} else {
+					product.quantityBySize.push({
+						sizeId: item.sizeId,
+						name: item.size,
+						quantity: item.quantity,
+					});
+				}
+
+				product.totalSold = Math.max(product.totalSold - item.quantity, 0);
+				await product.save();
+			}
+		}
+
+		// Nếu giao thành công (và trước đó chưa phải là success)
+		const isDelivering = status === 'success' && currentStatus !== 'success';
+		if (isDelivering) {
+			for (const item of order.items) {
+				const product = await Product.findById(item.productId);
+				if (!product) continue;
+
+				product.totalSold = (product.totalSold || 0) + item.quantity;
+				await product.save();
+			}
+
+			// Nếu là COD (thanh toán khi nhận hàng), thì set isPaid = true
+			if (order.paymentMethod === 'cod') {
+				order.isPaid = true;
+			}
+		}
+
+		// ✅ Cập nhật trạng thái đơn hàng
+		order.status = status;
+		await order.save();
+
+		await order.populate('shippingAddress');
+		res.json(order);
 	} catch (error) {
+		console.error(error);
 		res.status(500).json({message: 'Cập nhật trạng thái thất bại', error: error.message});
 	}
 };
@@ -439,6 +513,9 @@ exports.createPaymentUrl = async (req, res) => {
 			vnp_ReturnUrl: process.env.NODE_ENV === 'development' ? process.env.VNP_RETURN_URL_DEV : process.env.VNP_RETURN_URL_PRODUCTION,
 			vnp_Locale: VnpLocale.VN,
 		});
+
+		console.log('🔗 Redirect đến:', paymentUrl);
+		console.log('🔍 TMNCODE đang dùng:', process.env.VNP_TMNCODE);
 
 		res.status(200).json(paymentUrl);
 	} catch (err) {

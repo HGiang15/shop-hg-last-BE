@@ -28,6 +28,15 @@ exports.createProduct = async (req, res) => {
 			quantity: Number(item.quantity),
 		}));
 
+		const totalQuantity = parsedQuantityBySize.reduce((sum, item) => sum + item.quantity, 0);
+
+		let status;
+		if (['active', 'inactive', 'discontinued'].includes(req.body.status)) {
+			status = req.body.status;
+		} else {
+			status = totalQuantity === 0 ? 'inactive' : 'active';
+		}
+
 		const product = new Product({
 			code,
 			name,
@@ -39,7 +48,7 @@ exports.createProduct = async (req, res) => {
 			description,
 			detailDescription,
 			isFeatured: isFeatured === 'true' || isFeatured === true,
-			status: ['active', 'inactive', 'discontinued'].includes(req.body.status) ? req.body.status : 'active',
+			status,
 			totalSold: 0,
 		});
 
@@ -148,6 +157,8 @@ exports.updateProduct = async (req, res) => {
 			quantity: Number(item.quantity),
 		}));
 
+		const totalQuantity = parsedQuantityBySize.reduce((sum, item) => sum + item.quantity, 0);
+
 		const updateData = {
 			code,
 			name,
@@ -159,17 +170,8 @@ exports.updateProduct = async (req, res) => {
 			detailDescription,
 			images: parsedImages,
 			isFeatured: isFeatured === 'true' || isFeatured === true,
+			status: ['active', 'inactive', 'discontinued'].includes(status) ? status : totalQuantity === 0 ? 'inactive' : 'active',
 		};
-
-		// Tính tổng số lượng mới
-		const totalQuantity = parsedQuantityBySize.reduce((sum, item) => sum + item.quantity, 0);
-
-		// Ưu tiên dùng status nếu gửi lên, nếu không thì tự động cập nhật
-		if (status) {
-			updateData.status = status;
-		} else {
-			updateData.status = totalQuantity === 0 ? 'discontinued' : 'active';
-		}
 
 		const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {new: true});
 
