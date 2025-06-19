@@ -10,6 +10,7 @@ const locationRouter = require('./location');
 const reviewRouter = require('./review');
 const uploadRouter = require('./upload');
 const voucherRouter = require('./voucher');
+const contactRouter = require('./contact');
 
 function route(app) {
 	app.use('/api/user', authRouter);
@@ -24,6 +25,7 @@ function route(app) {
 	app.use('/api/review', reviewRouter);
 	app.use('/api/voucher', voucherRouter);
 	app.use('/api/upload', uploadRouter);
+	app.use('/api/contact', contactRouter);
 }
 
 module.exports = route;
