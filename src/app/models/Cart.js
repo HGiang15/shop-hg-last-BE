@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+// Giỏ người dùng đã đăng nhập và Giỏ khách vãng lai
 const CartItemSchema = new Schema({
 	productId: {type: Schema.Types.ObjectId, ref: 'Product'},
 	sizeId: {type: Schema.Types.ObjectId, ref: 'Size'},

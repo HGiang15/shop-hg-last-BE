@@ -24,32 +24,41 @@ exports.createOrder = async (req, res) => {
 			return res.status(400).json({message: 'Danh sách sản phẩm không hợp lệ'});
 		}
 
-		const productIds = items.map((item) => item.productId);
-		const products = await Product.find({_id: {$in: productIds}});
+		const orderItems = [];
+		let totalAmount = 0;
+		const stockUpdatePromises = [];
 
-		const productMap = {};
-		products.forEach((product) => {
-			productMap[product._id.toString()] = product;
-		});
+		for (const item of items) {
+			const product = await Product.findById(item.productId);
+			if (!product) return res.status(404).json({message: `Sản phẩm với ID ${item.productId} không tồn tại.`});
 
-		const orderItems = items.map((item) => {
-			const product = productMap[item.productId];
-			if (!product) {
-				throw new Error(`Không tìm thấy sản phẩm với ID: ${item.productId}`);
+			const sizeInfo = product.quantityBySize.find((s) => s.sizeId.equals(item.sizeId));
+			if (!sizeInfo) return res.status(400).json({message: `Sản phẩm "${product.name}" không có size bạn chọn.`});
+
+			if (sizeInfo.quantity < item.quantity) {
+				return res.status(400).json({message: `Sản phẩm "${product.name}" (${sizeInfo.name}) không đủ hàng.`});
 			}
 
-			return {
+			orderItems.push({
 				productId: item.productId,
-				name: item.name || product.name,
+				sizeId: item.sizeId,
+				name: product.name,
 				image: product.images?.[0] || '',
-				color: item.color || '',
-				size: item.size || '',
+				color: product.colors.find((c) => c.colorId.equals(item.colorId))?.name || product.colors[0]?.name || '',
+				size: sizeInfo.name,
 				quantity: item.quantity,
 				price: product.price,
-			};
-		});
+			});
 
-		let totalAmount = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+			totalAmount += product.price * item.quantity;
+
+			//  lệnh trừ kho và thêm vào mảng promises
+			const updatePromise = Product.updateOne(
+				{_id: item.productId, 'quantityBySize.sizeId': item.sizeId},
+				{$inc: {'quantityBySize.$.quantity': -item.quantity, totalSold: item.quantity}}
+			);
+			stockUpdatePromises.push(updatePromise);
+		}
 
 		let discountAmount = 0;
 		let voucherId = null;
@@ -89,26 +98,10 @@ exports.createOrder = async (req, res) => {
 			voucherId = voucher._id;
 		}
 
-		// ✅ Giảm số lượng tồn kho theo size
-		for (const item of orderItems) {
-			const product = productMap[item.productId];
-			const quantityEntry = product.quantityBySize.find((q) => q.name.toLowerCase().trim() === item.size.toLowerCase().trim());
+		// Nếu có lỗi ở bước này, nó sẽ nhảy vào catch và không tạo đơn hàng
+		await Promise.all(stockUpdatePromises);
 
-			if (!quantityEntry) {
-				return res.status(400).json({message: `Không tìm thấy tồn kho cho sản phẩm ${item.name}, size ${item.size}`});
-			}
-
-			if (quantityEntry.quantity < item.quantity) {
-				return res.status(400).json({
-					message: `Sản phẩm ${item.name}, size ${item.size} không đủ hàng (còn lại ${quantityEntry.quantity})`,
-				});
-			}
-
-			quantityEntry.quantity -= item.quantity;
-			// product.totalSold += item.quantity;
-			await product.save();
-		}
-
+		// Sau khi trừ kho thành công, mới tạo đơn hàng
 		const order = await Order.create({
 			userId,
 			shippingAddress,
@@ -202,61 +195,67 @@ exports.updateStatus = async (req, res) => {
 		}
 
 		const order = await Order.findById(id);
-		if (!order) {
-			return res.status(404).json({message: 'Không tìm thấy đơn hàng'});
-		}
+		if (!order) return res.status(404).json({message: 'Không tìm thấy đơn hàng'});
 
 		const currentStatus = order.status;
-
-		// ✅ Nếu huỷ đơn (và đơn chưa bị huỷ trước đó)
-		const isCancelling = status === 'cancelled' && currentStatus !== 'cancelled';
-		if (isCancelling) {
-			for (const item of order.items) {
-				const product = await Product.findById(item.productId);
-				if (!product) continue;
-
-				const quantityEntry = product.quantityBySize.find((q) => q.name.toLowerCase().trim() === item.size.toLowerCase().trim());
-
-				if (quantityEntry) {
-					quantityEntry.quantity += item.quantity;
-				} else {
-					product.quantityBySize.push({
-						sizeId: item.sizeId,
-						name: item.size,
-						quantity: item.quantity,
-					});
-				}
-
-				product.totalSold = Math.max(product.totalSold - item.quantity, 0);
-				await product.save();
-			}
+		if (currentStatus === 'success' || currentStatus === 'cancelled') {
+			return res.status(400).json({message: `Không thể thay đổi trạng thái của đơn hàng đã ${currentStatus}.`});
 		}
 
-		// Nếu giao thành công (và trước đó chưa phải là success)
-		const isDelivering = status === 'success' && currentStatus !== 'success';
-		if (isDelivering) {
-			for (const item of order.items) {
-				const product = await Product.findById(item.productId);
-				if (!product) continue;
+		const stockUpdatePromises = [];
 
-				product.totalSold = (product.totalSold || 0) + item.quantity;
-				await product.save();
-			}
-
-			// Nếu là COD (thanh toán khi nhận hàng), thì set isPaid = true
+		// Logic khi GIAO HÀNG THÀNH CÔNG
+		if (status === 'success') {
+			// Không làm gì với tồn kho ở đây vì đã trừ lúc tạo đơn
 			if (order.paymentMethod === 'cod') {
 				order.isPaid = true;
+				order.paymentTime = new Date();
 			}
 		}
 
-		// ✅ Cập nhật trạng thái đơn hàng
+		// Logic khi HỦY ĐƠN
+		if (status === 'cancelled') {
+			for (const item of order.items) {
+				// Lấy lại thông tin sản phẩm để đảm bảo dữ liệu mới nhất
+				const product = await Product.findById(item.productId);
+				if (!product) {
+					console.warn(`Product with ID ${item.productId} not found while restocking order ${order._id}`);
+					continue; // Bỏ qua nếu sản phẩm đã bị xóa
+				}
+
+				// ✅ TÌM LẠI sizeId DỰA TRÊN TÊN SIZE ĐÃ LƯU TRONG ĐƠN HÀNG
+				// Đây là cách làm an toàn và đáng tin cậy nhất
+				const sizeInfo = product.quantityBySize.find((s) => s.name === item.size);
+
+				if (sizeInfo) {
+					const updatePromise = Product.updateOne(
+						{_id: item.productId, 'quantityBySize.sizeId': sizeInfo.sizeId},
+						{
+							$inc: {
+								'quantityBySize.$.quantity': item.quantity, // Cộng trả lại kho
+								totalSold: -item.quantity,
+							},
+						}
+					);
+					stockUpdatePromises.push(updatePromise);
+				} else {
+					console.warn(`Size "${item.size}" not found for product ${item.productId} while restocking.`);
+				}
+			}
+		}
+
+		// Thực thi tất cả các lệnh cập nhật
+		if (stockUpdatePromises.length > 0) {
+			await Promise.all(stockUpdatePromises);
+		}
+
 		order.status = status;
 		await order.save();
 
-		await order.populate('shippingAddress');
-		res.json(order);
+		const populatedOrder = await Order.findById(id).populate('shippingAddress');
+		res.json(populatedOrder);
 	} catch (error) {
-		console.error(error);
+		console.error('Update status error:', error);
 		res.status(500).json({message: 'Cập nhật trạng thái thất bại', error: error.message});
 	}
 };
