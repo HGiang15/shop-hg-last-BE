@@ -27,10 +27,7 @@ const OrderSchema = new mongoose.Schema(
 				price: Number,
 			},
 		],
-		totalAmount: {
-			type: Number,
-			required: true,
-		},
+
 		status: {
 			type: String,
 			enum: ['pending', 'shipping', 'success', 'cancelled'],
@@ -51,6 +48,10 @@ const OrderSchema = new mongoose.Schema(
 		note: {
 			type: String,
 			default: '',
+		},
+		totalAmount: {
+			type: Number,
+			required: true,
 		},
 		discountAmount: {type: Number, default: 0},
 		finalAmount: {type: Number},

@@ -35,7 +35,7 @@ exports.googleLogin = async (req, res) => {
 			user = await new User({
 				name,
 				email,
-				phone: '---',
+				// phone,
 				dateOfBirth: new Date(),
 				gender: 'Other',
 				password: await bcrypt.hash(Date.now().toString(), 10),

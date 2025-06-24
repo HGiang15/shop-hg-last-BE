@@ -5,38 +5,54 @@ const ProductSchema = new Schema(
 	{
 		code: {
 			type: String,
-			required: [true, 'Please enter product id'],
 		},
 		name: {
 			type: String,
 			required: [true, 'Please enter product name'],
 		},
-		category: [
-			{
-				categoryId: {
-					type: Schema.Types.ObjectId,
-					ref: 'Category',
-					required: true,
+		category: {
+			type: [
+				{
+					categoryId: {
+						type: Schema.Types.ObjectId,
+						ref: 'Category',
+						required: true,
+					},
+					name: {
+						type: String,
+						required: true,
+					},
 				},
-				name: {
-					type: String,
-					required: true,
+			],
+			validate: {
+				validator: function (v) {
+					return Array.isArray(v) && v.length > 0;
 				},
+				message: 'Sản phẩm phải có ít nhất một danh mục!',
 			},
-		],
-		colors: [
-			{
-				colorId: {
-					type: Schema.Types.ObjectId,
-					ref: 'Color',
-					required: true,
+		},
+		colors: {
+			type: [
+				{
+					colorId: {
+						type: Schema.Types.ObjectId,
+						ref: 'Color',
+						required: true,
+					},
+					name: {
+						type: String,
+						required: true,
+					},
 				},
-				name: {
-					type: String,
-					required: true,
+			],
+			validate: {
+				validator: function (v) {
+					return Array.isArray(v) && v.length > 0;
 				},
+				message: 'Sản phẩm phải có ít nhất một màu sắc!',
 			},
-		],
+		},
+
 		images: {
 			type: [String],
 			validate: [(arr) => arr.length <= 6, '{PATH} exceeds the limit of 6'],

@@ -520,6 +520,7 @@ exports.createPaymentUrl = async (req, res) => {
 	}
 };
 
+// vnpay-return
 exports.returnPayment = async (req, res) => {
 	try {
 		const verify = vnpay.verifyReturnUrl(req.query);

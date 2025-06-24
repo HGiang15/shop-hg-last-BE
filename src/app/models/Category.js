@@ -11,12 +11,21 @@ const CategorySchema = new Schema(
 			type: String,
 			required: true,
 		},
-		sizes: [
-			{
-				type: Schema.Types.ObjectId,
-				ref: 'Size',
+
+		sizes: {
+			type: [
+				{
+					type: Schema.Types.ObjectId,
+					ref: 'Size',
+				},
+			],
+			validate: {
+				validator: function (array) {
+					return Array.isArray(array) && array.length > 0;
+				},
+				message: 'Danh mục phải có ít nhất một kích cỡ (size)!',
 			},
-		],
+		},
 	},
 	{timestamps: true}
 );
