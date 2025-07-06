@@ -16,13 +16,14 @@ exports.getAllCart = async (req, res) => {
 
 exports.addToCart = async (req, res) => {
 	const {productId, quantity, sizeId} = req.body;
-	const user = req.user;
-	let cartToken = req.cookies.cartToken;
+	const user = req.user; // nếu đã login
+	let cartToken = req.cookies.cartToken; // nếu là khách
 
 	try {
-		// --- Tìm hoặc tạo giỏ hàng ---
+		//  Tìm hoặc tạo giỏ hàng
 		let identifier = user ? {userId: user.id} : {cartToken};
 		if (!user && !cartToken) {
+			// Nếu là khách mà chưa có cartToken, tạo mới token
 			const newCartToken = generateCartToken();
 			res.cookie('cartToken', newCartToken, {httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000});
 			identifier.cartToken = newCartToken;
@@ -31,7 +32,7 @@ exports.addToCart = async (req, res) => {
 		let cart = await Cart.findOne(identifier);
 		if (!cart) cart = new Cart({...identifier, items: []});
 
-		// --- Logic tìm và cộng dồn số lượng ---
+		// cộng dồn số lượng
 		const existingItem = cart.items.find((item) => item.productId.equals(productId) && item.sizeId.equals(sizeId));
 
 		if (existingItem) {
@@ -40,6 +41,7 @@ exports.addToCart = async (req, res) => {
 			cart.items.push({productId, quantity, sizeId});
 		}
 
+		// Lưu và trả về giỏ hàng populate đầy đủ thông tin
 		await cart.save();
 		const populatedCart = await Cart.findOne(identifier).populate('items.productId').populate('items.sizeId');
 		res.json(populatedCart);
@@ -54,8 +56,7 @@ exports.updateItem = async (req, res) => {
 	const identifier = req.user ? {userId: req.user.id} : {cartToken: req.cookies.cartToken};
 
 	if (quantity <= 0) {
-		// Nếu số lượng <= 0, ta coi như là xóa sản phẩm đó
-		return exports.removeItem(req, res); // Gọi hàm removeItem để xử lý
+		return exports.removeItem(req, res);
 	}
 
 	try {
@@ -81,7 +82,7 @@ exports.removeItem = async (req, res) => {
 	try {
 		const cart = await Cart.findOneAndUpdate(
 			identifier,
-			{$pull: {items: {_id: itemId}}}, // Dùng $pull để xóa item khỏi mảng
+			{$pull: {items: {_id: itemId}}}, // $pull: để xóa item khỏi mảng
 			{new: true}
 		)
 			.populate('items.productId')

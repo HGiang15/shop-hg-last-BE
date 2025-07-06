@@ -2,7 +2,7 @@ const Voucher = require('../models/Voucher');
 
 exports.applyVoucher = async (req, res) => {
 	const {code, orderTotal} = req.body;
-	const userId = req.user._id; // lấy từ token sau khi xác thực
+	const userId = req.user._id;
 
 	try {
 		const voucher = await Voucher.findOne({code: code.toUpperCase(), isActive: true});
@@ -13,8 +13,6 @@ exports.applyVoucher = async (req, res) => {
 		if (now < voucher.startDate || now > voucher.endDate) return res.status(400).json({message: 'Mã giảm giá không còn hiệu lực'});
 
 		if (voucher.quantity <= 0) return res.status(400).json({message: 'Mã giảm giá đã hết lượt sử dụng'});
-
-		if (voucher.usedBy.includes(userId)) return res.status(400).json({message: 'Bạn đã sử dụng mã này rồi'});
 
 		if (orderTotal < voucher.minOrderValue)
 			return res.status(400).json({message: `Đơn hàng phải từ ${voucher.minOrderValue}đ để dùng mã này`});
@@ -54,13 +52,13 @@ exports.getAvailableVouchersForUser = async (req, res) => {
 		const vouchers = await Voucher.find({
 			isActive: true,
 			quantity: {$gt: 0},
-			showAt: {$lte: now}, // đã đến lúc hiển thị
-			endDate: {$gte: now}, // chưa hết hạn
+			showAt: {$lte: now},
+			endDate: {$gte: now},
 		}).sort({createdAt: -1});
 
 		const result = vouchers.map((v) => ({
 			...v.toObject(),
-			canUse: now >= v.startDate, // true nếu đã có thể dùng, false nếu chưa đến thời gian áp dụng
+			canUse: now >= v.startDate,
 		}));
 
 		res.json(result);

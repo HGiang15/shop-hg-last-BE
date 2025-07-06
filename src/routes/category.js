@@ -127,6 +127,4 @@ router.delete('/deleteCategory/:id', categoryController.deleteCategory);
 
 router.delete('/delete-multiple', categoryController.deleteMultipleCategories);
 
-router.get('/getCategoryByName/:name', categoryController.getCategoryByName);
-
 module.exports = router;

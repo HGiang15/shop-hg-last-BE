@@ -4,7 +4,7 @@ const axios = require('axios');
 
 const url = 'https://provinces.open-api.vn/api/?depth=3';
 
-const savePath = path.resolve(__dirname, 'vietnam.json'); // Sửa ở đây
+const savePath = path.resolve(__dirname, 'vietnam.json');
 
 async function downloadProvinces() {
 	try {

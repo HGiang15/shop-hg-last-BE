@@ -23,7 +23,6 @@ async function isProfane(text) {
 	return filter.isProfane(text) || containsVietnameseBadWord(text);
 }
 
-// ✅ Fix export này:
 module.exports = {
 	isProfane,
 };

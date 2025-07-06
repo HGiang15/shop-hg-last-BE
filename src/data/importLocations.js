@@ -8,13 +8,11 @@ const jsonPath = path.resolve(__dirname, 'vietnam.json');
 const rawData = fs.readFileSync(jsonPath);
 const provinces = JSON.parse(rawData);
 
-// 💡 Kết nối MongoDB trước khi insert
 mongoose
 	.connect(process.env.NODE_ENV === 'development' ? process.env.MONGODB_URI_DEV : process.env.MONGODB_URI_PRODUCTION)
 	.then(async () => {
 		console.log('✅ Kết nối MongoDB thành công');
 
-		// Xóa dữ liệu cũ nếu có
 		await Location.deleteMany({});
 		await Location.insertMany(
 			provinces.map((province) => ({

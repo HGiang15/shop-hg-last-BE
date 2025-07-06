@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 const moment = require('moment');
 
 const {VNPay, ignoreLogger, ProductCode, VnpLocale, dateFormat, VerifyReturnUrl} = require('vnpay');
+const {default: mongoose} = require('mongoose');
 
 const vnpay = new VNPay({
 	tmnCode: process.env.VNP_TMNCODE,
@@ -52,7 +53,7 @@ exports.createOrder = async (req, res) => {
 
 			totalAmount += product.price * item.quantity;
 
-			//  lệnh trừ kho và thêm vào mảng promises
+			//  trừ kho và thêm vào mảng
 			const updatePromise = Product.updateOne(
 				{_id: item.productId, 'quantityBySize.sizeId': item.sizeId},
 				{$inc: {'quantityBySize.$.quantity': -item.quantity, totalSold: item.quantity}}
@@ -66,22 +67,16 @@ exports.createOrder = async (req, res) => {
 		//   ÁP DỤNG VOUCHER nếu có
 		if (voucherCode) {
 			const voucher = await Voucher.findOne({code: voucherCode, isActive: true});
-			// Kiểm tra voucher hợp lệ
 			if (!voucher || !voucher.isActive || voucher.quantity <= 0) {
 				return res.status(400).json({message: 'Mã giảm giá không hợp lệ hoặc đã hết lượt sử dụng'});
 			}
-
-			// Kiểm tra thời gian hiệu lực
 			const now = new Date();
 			if (now < voucher.startDate || now > voucher.endDate) {
 				return res.status(400).json({message: 'Mã giảm giá đã hết hạn hoặc chưa bắt đầu'});
 			}
-
-			// Kiểm tra giá trị đơn hàng tối thiểu
 			if (totalAmount < voucher.minOrderValue) {
 				return res.status(400).json({message: `Đơn hàng chưa đạt giá trị tối thiểu ${voucher.minOrderValue} để dùng mã`});
 			}
-
 			// Tính số tiền giảm
 			if (voucher.discountType === 'fixed') {
 				discountAmount = voucher.discountValue;
@@ -98,10 +93,9 @@ exports.createOrder = async (req, res) => {
 			voucherId = voucher._id;
 		}
 
-		// Nếu có lỗi ở bước này, nó sẽ nhảy vào catch và không tạo đơn hàng
 		await Promise.all(stockUpdatePromises);
 
-		// Sau khi trừ kho thành công, mới tạo đơn hàng
+		// trừ kho thành công tạo đơn hàng
 		const order = await Order.create({
 			userId,
 			shippingAddress,
@@ -121,6 +115,7 @@ exports.createOrder = async (req, res) => {
 	}
 };
 
+// profile user
 exports.getUserOrders = async (req, res) => {
 	try {
 		const orders = await Order.find({userId: req.user._id}).populate('shippingAddress').sort({createdAt: -1});
@@ -133,34 +128,65 @@ exports.getUserOrders = async (req, res) => {
 
 exports.getAllOrders = async (req, res) => {
 	try {
-		const page = parseInt(req.query.page) || 1;
-		const limit = parseInt(req.query.limit) || 10;
-		const skip = (page - 1) * limit;
-		const status = req.query.status;
+		const {page = 1, limit = 10, status, search = '', sort = 'newest', startDate, endDate} = req.query;
 
-		// Nếu có truyền status thì lọc theo, không thì lấy tất cả
-		const filter = {};
+		const pageNumber = parseInt(page, 10);
+		const limitNumber = parseInt(limit, 10);
+		const skip = (pageNumber - 1) * limitNumber;
+
+		const query = {};
+
 		if (status) {
-			filter.status = status;
+			query.status = status;
 		}
 
-		const orders = await Order.find(filter)
+		// search _id của đơn hàng
+		if (search) {
+			const searchConditions = [];
+			if (mongoose.Types.ObjectId.isValid(search)) {
+				searchConditions.push({_id: new mongoose.Types.ObjectId(search)});
+			}
+			searchConditions.push({orderCode: {$regex: search, $options: 'i'}});
+
+			query.$or = searchConditions;
+		}
+
+		if (startDate || endDate) {
+			query.createdAt = {};
+			if (startDate) {
+				query.createdAt.$gte = moment(startDate).startOf('day').toDate();
+			}
+			if (endDate) {
+				query.createdAt.$lte = moment(endDate).endOf('day').toDate();
+			}
+		}
+
+		let sortOption = {};
+		if (sort === 'newest') {
+			sortOption = {createdAt: -1};
+		} else if (sort === 'oldest') {
+			sortOption = {createdAt: 1};
+		}
+
+		const totalItems = await Order.countDocuments(query);
+
+		const orders = await Order.find(query)
 			.populate('shippingAddress')
 			.populate('userId', 'name email')
-			.sort({createdAt: -1})
+			.sort(sortOption)
 			.skip(skip)
-			.limit(limit);
+			.limit(limitNumber);
 
-		const totalItems = await Order.countDocuments(filter);
-		const totalPages = Math.ceil(totalItems / limit);
+		const totalPages = Math.ceil(totalItems / limitNumber);
 
 		res.status(200).json({
 			orders,
-			currentPage: page,
+			currentPage: pageNumber,
 			totalItems,
 			totalPages,
 		});
 	} catch (error) {
+		console.error(error);
 		res.status(500).json({
 			message: 'Lỗi khi lấy danh sách đơn hàng',
 			error: error.message,
@@ -204,27 +230,22 @@ exports.updateStatus = async (req, res) => {
 
 		const stockUpdatePromises = [];
 
-		// Logic khi GIAO HÀNG THÀNH CÔNG
 		if (status === 'success') {
-			// Không làm gì với tồn kho ở đây vì đã trừ lúc tạo đơn
 			if (order.paymentMethod === 'cod') {
 				order.isPaid = true;
 				order.paymentTime = new Date();
 			}
 		}
 
-		// Logic khi HỦY ĐƠN
 		if (status === 'cancelled') {
 			for (const item of order.items) {
-				// Lấy lại thông tin sản phẩm để đảm bảo dữ liệu mới nhất
-				const product = await Product.findById(item.productId);
+				const product = await Product.findById(item.productId); // Lấy lại thông tin sản phẩm
 				if (!product) {
 					console.warn(`Product with ID ${item.productId} not found while restocking order ${order._id}`);
-					continue; // Bỏ qua nếu sản phẩm đã bị xóa
+					continue;
 				}
 
-				// ✅ TÌM LẠI sizeId DỰA TRÊN TÊN SIZE ĐÃ LƯU TRONG ĐƠN HÀNG
-				// Đây là cách làm an toàn và đáng tin cậy nhất
+				// find sizeId dựa trên size đã lưu trên đơn hàng
 				const sizeInfo = product.quantityBySize.find((s) => s.name === item.size);
 
 				if (sizeInfo) {
@@ -244,7 +265,6 @@ exports.updateStatus = async (req, res) => {
 			}
 		}
 
-		// Thực thi tất cả các lệnh cập nhật
 		if (stockUpdatePromises.length > 0) {
 			await Promise.all(stockUpdatePromises);
 		}
@@ -264,7 +284,6 @@ exports.deleteOrder = async (req, res) => {
 	try {
 		const {id} = req.params;
 
-		// Kiểm tra đơn hàng có tồn tại không
 		const order = await Order.findById(id);
 		if (!order) {
 			return res.status(404).json({message: 'Đơn hàng không tồn tại'});
@@ -281,7 +300,6 @@ exports.deleteOrder = async (req, res) => {
 
 exports.getDashboardStats = async (req, res) => {
 	try {
-		// Lấy ngày hiện tại
 		const todayStart = moment().startOf('day').toDate();
 		const todayEnd = moment().endOf('day').toDate();
 		const monthStart = moment().startOf('month').toDate();
@@ -289,13 +307,10 @@ exports.getDashboardStats = async (req, res) => {
 		const yearStart = moment().startOf('year').toDate();
 		const yearEnd = moment().endOf('year').toDate();
 
-		// Tổng số đơn hàng
 		const totalOrders = await Order.countDocuments();
 
-		// Đơn hàng thành công
 		const successOrders = await Order.countDocuments({status: 'success'});
 
-		// Đơn hàng bị hủy
 		const cancelledOrders = await Order.countDocuments({status: 'cancelled'});
 
 		// Tổng doanh thu (chỉ tính đơn thành công và đã thanh toán)
@@ -389,7 +404,6 @@ exports.getRevenueChartData = async (req, res) => {
 			},
 		]);
 
-		// Khởi tạo đầy đủ 12 tháng (kể cả nếu không có doanh thu)
 		const result = Array.from({length: 12}, (_, i) => {
 			const month = (i + 1).toString().padStart(2, '0');
 			const found = monthlyRevenue.find((item) => item._id === i + 1);
@@ -411,7 +425,7 @@ exports.getRevenueByDayInMonthCurrentYear = async (req, res) => {
 	try {
 		const now = moment();
 		const currentYear = now.year();
-		const currentMonth = now.month(); // 0-based (0 = January)
+		const currentMonth = now.month();
 		const startOfMonth = moment([currentYear, currentMonth]).startOf('month').toDate();
 		const endOfMonth = moment([currentYear, currentMonth]).endOf('month').toDate();
 

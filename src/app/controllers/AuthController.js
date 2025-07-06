@@ -9,6 +9,7 @@ const {sendOTPVerificationEmail} = require('./../../utils/email');
 const {OAuth2Client} = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// auth
 exports.googleLogin = async (req, res) => {
 	try {
 		const {token} = req.body;
@@ -29,7 +30,7 @@ exports.googleLogin = async (req, res) => {
 			return res.status(400).json({status: 'Thất bại', message: 'Token không hợp lệ.'});
 		}
 
-		// Tìm hoặc tạo user mới
+		// Tìm, tạo user mới
 		let user = await User.findOne({email});
 		if (!user) {
 			user = await new User({
@@ -47,7 +48,6 @@ exports.googleLogin = async (req, res) => {
 			}).save();
 		}
 
-		// Kiểm tra trạng thái tài khoản
 		if (user.status === 0) {
 			return res.status(403).json({status: 'Thất bại', message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'});
 		}
@@ -66,6 +66,7 @@ exports.googleLogin = async (req, res) => {
 	}
 };
 
+// auth
 exports.register = async (req, res) => {
 	try {
 		const {name, email, phone, dateOfBirth, gender, password, role = 1} = req.body;
@@ -130,6 +131,7 @@ exports.register = async (req, res) => {
 	}
 };
 
+// auth
 exports.verifyOTP = async (req, res) => {
 	try {
 		const {userId, otp} = req.body;
@@ -166,6 +168,7 @@ exports.verifyOTP = async (req, res) => {
 	}
 };
 
+// auth
 exports.login = async (req, res) => {
 	try {
 		const {email, password} = req.body;
@@ -187,24 +190,22 @@ exports.login = async (req, res) => {
 			return res.status(401).json({status: 'Thất bại', message: 'Email chưa được xác minh.'});
 		}
 
-		// Kiểm tra trạng thái tài khoản
 		if (user.status === 0) {
 			return res.status(403).json({status: 'Thất bại', message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'});
 		}
 
-		// 1. Lấy giỏ hàng của guest từ cookie
+		// Find giỏ hàng guest từ cookie
 		const cartToken = req.cookies.cartToken;
 		let guestCart = null;
 
 		if (cartToken) {
-			// Lấy giỏ hàng của guest từ cơ sở dữ liệu nếu có
-			guestCart = await Cart.findOne({cartToken}); // Giả sử bạn lưu giỏ hàng của khách bằng cartToken
+			guestCart = await Cart.findOne({cartToken});
 		}
 
-		// 2. Lấy giỏ hàng của người dùng đã đăng nhập
+		// Find giỏ hàng user trong DB
 		let userCart = await Cart.findOne({userId: user._id});
 
-		// 3. Nếu có giỏ hàng của khách, hợp nhất giỏ hàng
+		// Nếu có giỏ hàng của khách merge giỏ hàng
 		if (guestCart) {
 			if (!userCart) {
 				userCart = new Cart({userId: user._id, items: []});
@@ -229,7 +230,6 @@ exports.login = async (req, res) => {
 			res.clearCookie('cartToken');
 		}
 
-		// 5. Cập nhật token JWT cho người dùng
 		const token = generateToken(user);
 
 		res.status(200).json({
@@ -244,6 +244,7 @@ exports.login = async (req, res) => {
 	}
 };
 
+// auth
 exports.forgotPassword = async (req, res) => {
 	try {
 		const {email} = req.body;
@@ -274,6 +275,7 @@ exports.forgotPassword = async (req, res) => {
 	}
 };
 
+// auth
 exports.resetPassword = async (req, res) => {
 	try {
 		const {email, otp, newPassword} = req.body;
@@ -307,6 +309,7 @@ exports.resetPassword = async (req, res) => {
 	}
 };
 
+// Profile and admin
 exports.changePassword = async (req, res) => {
 	try {
 		const userId = req.user._id;
@@ -341,6 +344,121 @@ exports.changePassword = async (req, res) => {
 	}
 };
 
+// admin
+exports.createUser = async (req, res) => {
+	try {
+		const {name, email, phone, dateOfBirth, gender, password, role, verified = true, status = 1} = req.body;
+
+		if (!name || !email || !password) {
+			return res.status(400).json({status: 'Thất bại', message: 'Vui lòng không để trống tên, email và mật khẩu.'});
+		}
+
+		if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+			return res.status(400).json({status: 'Thất bại', message: 'Email không hợp lệ.'});
+		}
+
+		if (phone && !/^\d{10,15}$/.test(phone)) {
+			return res.status(400).json({status: 'Thất bại', message: 'Số điện thoại không hợp lệ.'});
+		}
+		// Validate dateOfBirth if provided
+		if (dateOfBirth && !new Date(dateOfBirth).getTime()) {
+			return res.status(400).json({status: 'Thất bại', message: 'Ngày sinh không hợp lệ.'});
+		}
+
+		if (gender && !['Male', 'Female', 'Other'].includes(gender)) {
+			return res.status(400).json({status: 'Thất bại', message: 'Giới tính không hợp lệ.'});
+		}
+
+		if (password.length < 6) {
+			return res.status(400).json({status: 'Thất bại', message: 'Mật khẩu quá ngắn, ít nhất 6 ký tự.'});
+		}
+
+		const existingUser = await User.findOne({email});
+		if (existingUser) {
+			return res.status(409).json({status: 'Thất bại', message: 'Người dùng với email này đã tồn tại.'});
+		}
+
+		// Hash password
+		const hashedPassword = await bcrypt.hash(password, 10);
+
+		const newUser = await new User({
+			name,
+			email,
+			phone,
+			dateOfBirth,
+			gender,
+			password: hashedPassword,
+			avatar: '',
+			role: role !== undefined ? Number(role) : 1,
+			verified,
+			status,
+			provider: 'local',
+		}).save();
+
+		res.status(201).json({
+			status: 'Thành công',
+			message: 'Người dùng đã được tạo thành công!',
+			data: {
+				id: newUser._id,
+				name: newUser.name,
+				email: newUser.email,
+				role: newUser.role,
+				verified: newUser.verified,
+				status: newUser.status,
+			},
+		});
+	} catch (error) {
+		console.error('Lỗi tạo người dùng:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi máy chủ khi tạo người dùng.'});
+	}
+};
+
+// admin
+exports.updateUserByAdmin = async (req, res) => {
+	try {
+		const {id} = req.params;
+		const updates = req.body;
+
+		delete updates.password;
+		delete updates.googleId;
+		delete updates.provider;
+
+		if (updates.email) {
+			if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(updates.email)) {
+				return res.status(400).json({status: 'Thất bại', message: 'Email không hợp lệ.'});
+			}
+			const existingUserWithEmail = await User.findOne({email: updates.email, _id: {$ne: id}});
+			if (existingUserWithEmail) {
+				return res.status(409).json({status: 'Thất bại', message: 'Email này đã được sử dụng bởi người dùng khác.'});
+			}
+		}
+
+		if (updates.phone && !/^\d{10,15}$/.test(updates.phone)) {
+			return res.status(400).json({status: 'Thất bại', message: 'Số điện thoại không hợp lệ.'});
+		}
+
+		if (updates.dateOfBirth && !new Date(updates.dateOfBirth).getTime()) {
+			return res.status(400).json({status: 'Thất bại', message: 'Ngày sinh không hợp lệ.'});
+		}
+
+		if (updates.gender && !['Male', 'Female', 'Other'].includes(updates.gender)) {
+			return res.status(400).json({status: 'Thất bại', message: 'Giới tính không hợp lệ.'});
+		}
+
+		const updatedUser = await User.findByIdAndUpdate(id, updates, {new: true}).select('-password');
+
+		if (!updatedUser) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy người dùng để cập nhật.'});
+		}
+
+		res.status(200).json({status: 'Thành công', message: 'Cập nhật thông tin người dùng thành công.', data: updatedUser});
+	} catch (error) {
+		console.error('Lỗi cập nhật người dùng bởi Admin:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi máy chủ khi cập nhật người dùng.'});
+	}
+};
+
+// admin
 exports.getListUser = async (req, res) => {
 	try {
 		const page = parseInt(req.query.page) || 1;
@@ -349,17 +467,14 @@ exports.getListUser = async (req, res) => {
 
 		const {search = '', sort = 'newest', role, status} = req.query;
 
-		// Tìm kiếm theo tên
 		const query = {
 			name: {$regex: search, $options: 'i'},
 		};
 
-		// Lọc theo role
 		if (role === '0' || role === '1') {
 			query.role = Number(role);
 		}
 
-		// Lọc theo status
 		if (status === '0' || status === '1') {
 			query.status = Number(status);
 		}
@@ -414,12 +529,96 @@ exports.getUserById = async (req, res) => {
 	}
 };
 
+// admin
+exports.deleteUser = async (req, res) => {
+	try {
+		const {id} = req.params;
+
+		if (!id) {
+			return res.status(400).json({status: 'Thất bại', message: 'Thiếu ID người dùng.'});
+		}
+
+		const deletedUser = await User.findByIdAndDelete(id);
+
+		if (!deletedUser) {
+			return res.status(404).json({status: 'Thất bại', message: 'Không tìm thấy người dùng để xóa.'});
+		}
+
+		res.status(200).json({
+			status: 'Thành công',
+			message: 'Người dùng đã được xóa thành công!',
+			data: {id: deletedUser._id, name: deletedUser.name},
+		});
+	} catch (error) {
+		console.error('Lỗi khi xóa người dùng:', error);
+		res.status(500).json({status: 'Thất bại', message: 'Lỗi máy chủ khi xóa người dùng.'});
+	}
+};
+
+// admin
+exports.updateUserStatus = async (req, res) => {
+	try {
+		const {id} = req.params;
+		const {status} = req.body;
+
+		const user = await User.findById(id);
+
+		if (!user) {
+			return res.status(404).json({message: 'Không tìm thấy người dùng'});
+		}
+
+		if (status !== undefined) {
+			user.status = status === 1 ? 1 : 0;
+			await user.save();
+
+			res.status(200).json({message: 'Cập nhật trạng thái thành công'});
+		} else {
+			res.status(400).json({message: 'Thiếu thông tin trạng thái'});
+		}
+	} catch (error) {
+		console.error('Lỗi cập nhật trạng thái người dùng:', error);
+		res.status(500).json({message: 'Lỗi server'});
+	}
+};
+
+// admin
+exports.updateUserRole = async (req, res) => {
+	try {
+		const {id} = req.params;
+		const {role} = req.body;
+
+		const user = await User.findById(id);
+
+		if (!user) {
+			return res.status(404).json({message: 'Không tìm thấy người dùng'});
+		}
+
+		if (role !== undefined) {
+			if (role === 'Quản trị') {
+				user.role = 0;
+			} else if (role === 'Người dùng') {
+				user.role = 1;
+			} else {
+				return res.status(400).json({message: 'Vai trò không hợp lệ. Vai trò phải là "Quản trị" hoặc "Người dùng".'});
+			}
+
+			await user.save();
+			res.status(200).json({message: 'Cập nhật vai trò thành công'});
+		} else {
+			res.status(400).json({message: 'Thiếu thông tin vai trò'});
+		}
+	} catch (error) {
+		console.error('Lỗi cập nhật vai trò người dùng:', error);
+		res.status(500).json({message: 'Lỗi server'});
+	}
+};
+
+// edit user profile
 exports.editUser = async (req, res) => {
 	try {
 		const {id} = req.params;
 		const updates = req.body;
 
-		// Không cho chỉnh sửa các trường bảo mật
 		delete updates.password;
 		delete updates.email;
 
@@ -435,6 +634,7 @@ exports.editUser = async (req, res) => {
 	}
 };
 
+// user
 exports.getMe = async (req, res) => {
 	try {
 		const user = await User.findById(req.user._id).select('-password');
@@ -460,62 +660,5 @@ exports.getMe = async (req, res) => {
 	} catch (error) {
 		console.error('Lỗi lấy thông tin người dùng:', error);
 		res.status(500).json({status: 'Thất bại', message: 'Lỗi máy chủ.'});
-	}
-};
-
-exports.updateUserStatus = async (req, res) => {
-	try {
-		const {id} = req.params;
-		const {status} = req.body;
-
-		const user = await User.findById(id);
-
-		if (!user) {
-			return res.status(404).json({message: 'Không tìm thấy người dùng'});
-		}
-
-		if (status !== undefined) {
-			user.status = status === 1 ? 1 : 0; // Trạng thái 1 là 'Đang hoạt động', 0 là 'Không hoạt động'
-			await user.save();
-
-			res.status(200).json({message: 'Cập nhật trạng thái thành công'});
-		} else {
-			res.status(400).json({message: 'Thiếu thông tin trạng thái'});
-		}
-	} catch (error) {
-		console.error('Lỗi cập nhật trạng thái người dùng:', error);
-		res.status(500).json({message: 'Lỗi server'});
-	}
-};
-
-exports.updateUserRole = async (req, res) => {
-	try {
-		const {id} = req.params;
-		const {role} = req.body;
-
-		const user = await User.findById(id);
-
-		if (!user) {
-			return res.status(404).json({message: 'Không tìm thấy người dùng'});
-		}
-
-		// Xử lý role dạng text
-		if (role !== undefined) {
-			if (role === 'Quản trị') {
-				user.role = 0;
-			} else if (role === 'Người dùng') {
-				user.role = 1;
-			} else {
-				return res.status(400).json({message: 'Vai trò không hợp lệ. Vai trò phải là "Quản trị" hoặc "Người dùng".'});
-			}
-
-			await user.save();
-			res.status(200).json({message: 'Cập nhật vai trò thành công'});
-		} else {
-			res.status(400).json({message: 'Thiếu thông tin vai trò'});
-		}
-	} catch (error) {
-		console.error('Lỗi cập nhật vai trò người dùng:', error);
-		res.status(500).json({message: 'Lỗi server'});
 	}
 };

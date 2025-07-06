@@ -1,7 +1,7 @@
 const Contact = require('./../models/Contact');
 const nodemailer = require('nodemailer');
 
-// [Public] Người dùng gửi tin nhắn liên hệ
+// User Người dùng gửi tin nhắn liên hệ
 exports.createContactMessage = async (req, res) => {
 	try {
 		const {name, email, phone, subject, message, attachments = []} = req.body;
@@ -24,7 +24,7 @@ exports.createContactMessage = async (req, res) => {
 	}
 };
 
-// [Admin] Trả lời tin nhắn của khách hàng qua email
+// admin Trả lời tin nhắn của khách hàng qua email
 exports.replyToMessage = async (req, res) => {
 	try {
 		const {replyMessage, attachments = []} = req.body;
@@ -54,7 +54,6 @@ exports.replyToMessage = async (req, res) => {
 			)
 			.join('');
 
-		// Sử dụng replyMessage đã được bóc tách chính xác
 		await transporter.sendMail({
 			from: `"TCSPorts Support" <${process.env.AUTH_EMAIL}>`,
 			to: originalMessage.email,
@@ -81,35 +80,30 @@ exports.replyToMessage = async (req, res) => {
 	}
 };
 
-// [Admin] Lấy tất cả tin nhắn (có phân trang)
+// admin Lấy tất cả tin nhắn (có phân trang)
 exports.getAllMessages = async (req, res) => {
 	try {
 		const page = parseInt(req.query.page) || 1;
 		const limit = parseInt(req.query.limit) || 10;
 		const skip = (page - 1) * limit;
 
-		// --- Bổ sung logic lọc và tìm kiếm ---
 		const {search, sort, status} = req.query;
 
 		const filter = {};
 
-		// 1. Lọc theo tên người gửi (không phân biệt hoa thường)
 		if (search) {
 			filter.name = {$regex: search, $options: 'i'};
 		}
 
-		// 2. Lọc theo trạng thái
 		if (status && ['new', 'read', 'replied'].includes(status)) {
 			filter.status = status;
 		}
 
-		// 3. Logic sắp xếp
-		let sortOptions = {createdAt: -1}; // Mặc định là mới nhất
+		let sortOptions = {createdAt: -1};
 		if (sort === 'oldest') {
 			sortOptions = {createdAt: 1};
 		}
 
-		// --- Truy vấn dữ liệu với các bộ lọc ---
 		const messages = await Contact.find(filter).sort(sortOptions).skip(skip).limit(limit);
 
 		const totalMessages = await Contact.countDocuments(filter);
@@ -125,7 +119,7 @@ exports.getAllMessages = async (req, res) => {
 	}
 };
 
-// [Admin] Lấy chi tiết một tin nhắn
+// admin Lấy chi tiết một tin nhắn
 exports.getMessageById = async (req, res) => {
 	try {
 		const message = await Contact.findById(req.params.id);
@@ -138,7 +132,7 @@ exports.getMessageById = async (req, res) => {
 	}
 };
 
-// [Admin] Cập nhật trạng thái tin nhắn
+// admin Cập nhật trạng thái tin nhắn
 exports.updateMessageStatus = async (req, res) => {
 	try {
 		const {status} = req.body;
@@ -146,11 +140,7 @@ exports.updateMessageStatus = async (req, res) => {
 			return res.status(400).json({message: 'Trạng thái không hợp lệ.'});
 		}
 
-		const updatedMessage = await Contact.findByIdAndUpdate(
-			req.params.id,
-			{status},
-			{new: true} // Trả về document đã được cập nhật
-		);
+		const updatedMessage = await Contact.findByIdAndUpdate(req.params.id, {status}, {new: true});
 
 		if (!updatedMessage) {
 			return res.status(404).json({message: 'Không tìm thấy tin nhắn để cập nhật.'});
@@ -162,7 +152,7 @@ exports.updateMessageStatus = async (req, res) => {
 	}
 };
 
-// [Admin] Xóa một tin nhắn
+// admin Xóa một tin nhắn
 exports.deleteMessage = async (req, res) => {
 	try {
 		const deletedMessage = await Contact.findByIdAndDelete(req.params.id);

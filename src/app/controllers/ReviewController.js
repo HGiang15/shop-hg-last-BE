@@ -177,7 +177,6 @@ exports.deleteReview = async (req, res) => {
 			return res.status(404).json({message: 'Không tìm thấy đánh giá để xóa'});
 		}
 
-		// Kiểm tra quyền người dùng
 		if (review.userId.toString() !== req.user._id.toString() && req.user.role !== 0) {
 			return res.status(403).json({message: 'Bạn không có quyền xóa đánh giá này'});
 		}
@@ -223,7 +222,7 @@ exports.getAllReviewsForAdmin = async (req, res) => {
 			matchStage.rating = parseInt(rating);
 		}
 
-		const sortOption = sort === 'oldest' ? {createdAt: 1} : {createdAt: -1}; // default: mới nhất
+		const sortOption = sort === 'oldest' ? {createdAt: 1} : {createdAt: -1};
 
 		const pipeline = [
 			{

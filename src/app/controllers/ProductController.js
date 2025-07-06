@@ -9,7 +9,7 @@ exports.createProduct = async (req, res) => {
 
 		const quantityBySizeString = req.body.quantityBySize;
 
-		// Parse các field dạng JSON string
+		// Parse field dạng JSON string fe gửi chuỗi json
 		let parsedCategory = {};
 		let parsedColors = [];
 		let parsedImages = [];
@@ -23,11 +23,6 @@ exports.createProduct = async (req, res) => {
 		} catch (err) {
 			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ (category/colors/quantityBySize/images)'});
 		}
-
-		//  Validate dữ liệu bắt buộc
-		// if (!code || typeof code !== 'string' || !code.trim()) {
-		// 	return res.status(400).json({message: 'Mã sản phẩm không được để trống!'});
-		// }
 
 		if (!name || typeof name !== 'string' || !name.trim()) {
 			return res.status(400).json({message: 'Tên sản phẩm không được để trống!'});
@@ -49,7 +44,7 @@ exports.createProduct = async (req, res) => {
 			return res.status(400).json({message: 'Phải upload ít nhất 1 hình ảnh cho sản phẩm!'});
 		}
 
-		// ✅ Xử lý quantity & status
+		// quantity status
 		parsedQuantityBySize = parsedQuantityBySize.map((item) => ({
 			...item,
 			quantity: Number(item.quantity),
@@ -62,7 +57,6 @@ exports.createProduct = async (req, res) => {
 			resolvedStatus = totalQuantity === 0 ? 'inactive' : 'active';
 		}
 
-		// ✅ Tạo đối tượng sản phẩm
 		const product = new Product({
 			code,
 			name,
@@ -79,6 +73,30 @@ exports.createProduct = async (req, res) => {
 		});
 
 		await product.save();
+
+		// db.products.insertOne({
+		// 	code: 'SP001',
+		// 	name: 'Áo Polo Nam Thể Thao',
+		// 	category: {
+		// 		categoryId: ObjectId('id_cua_danh_muc'), // ID của danh mục
+		// 		name: 'Áo Nam',
+		// 	},
+		// 	colors: [
+		// 		{colorId: ObjectId('id_cua_mau_do'), name: 'Đỏ', code: '#FF0000'},
+		// 		{colorId: ObjectId('id_cua_mau_xanh'), name: 'Xanh', code: '#0000FF'},
+		// 	],
+		// 	quantityBySize: [
+		// 		{sizeId: ObjectId('id_cua_size_s'), sizeName: 'S', quantity: 10},
+		// 		{sizeId: ObjectId('id_cua_size_m'), sizeName: 'M', quantity: 15},
+		// 	],
+		// 	price: 250000,
+		// 	images: ['url_anh_1', 'url_anh_2'],
+		// 	description: 'Áo polo thể thao cao cấp...',
+		// 	detailDescription: 'Chi tiết về chất liệu và thiết kế...',
+		// 	isFeatured: false,
+		// 	status: 'active',
+		// 	totalSold: 0,
+		// });
 
 		res.status(201).json({
 			message: 'Tạo sản phẩm thành công',
@@ -102,12 +120,10 @@ exports.getAllProducts = async (req, res) => {
 		const limitNumber = parseInt(limit, 10);
 		const skip = (pageNumber - 1) * limitNumber;
 
-		// Tìm kiếm theo tên ko phân biệt hoa thường
 		const query = {
 			name: {$regex: search, $options: 'i'},
 		};
 
-		// Xử lý sort
 		let sortOption = {};
 		if (sort === 'newest') sortOption = {createdAt: -1};
 		else if (sort === 'oldest') sortOption = {createdAt: 1};
@@ -117,6 +133,8 @@ exports.getAllProducts = async (req, res) => {
 		else if (sort === 'price_desc') sortOption = {price: -1};
 
 		const totalItems = await Product.countDocuments(query);
+		// db.products.countDocuments({name: {$regex: 'áo', $options: 'i'}});
+
 		const products = await Product.find(query).sort(sortOption).skip(skip).limit(limitNumber);
 
 		const totalPages = Math.ceil(totalItems / limitNumber);
@@ -181,7 +199,6 @@ exports.updateProduct = async (req, res) => {
 			return res.status(400).json({message: 'Dữ liệu đầu vào không hợp lệ (category/colors/quantityBySize/images)'});
 		}
 
-		// Validate dữ liệu bắt buộc
 		// if (!code || typeof code !== 'string' || !code.trim()) {
 		// 	return res.status(400).json({message: 'Mã sản phẩm không được để trống!'});
 		// }
@@ -206,7 +223,7 @@ exports.updateProduct = async (req, res) => {
 			return res.status(400).json({message: 'Phải có ít nhất 1 hình ảnh cho sản phẩm!'});
 		}
 
-		// Xử lý số lượng size
+		// size
 		parsedQuantityBySize = parsedQuantityBySize.map((item) => ({
 			...item,
 			quantity: Number(item.quantity),
@@ -220,7 +237,6 @@ exports.updateProduct = async (req, res) => {
 			? 'inactive'
 			: 'active';
 
-		// Tạo object update
 		const updateData = {
 			code,
 			name,

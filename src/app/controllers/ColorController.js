@@ -11,6 +11,11 @@ exports.createColor = async (req, res) => {
 
 		const newColor = new Color({code, name, description});
 		await newColor.save();
+		// db.colors.insertOne({
+		// 	code: '#FF0000',
+		// 	name: 'Đỏ',
+		// 	description: 'Màu đỏ rực rỡ',
+		// });
 
 		res.status(201).json({message: 'Tạo màu thành công', data: newColor});
 	} catch (error) {
@@ -27,12 +32,10 @@ exports.getAllColors = async (req, res) => {
 		const limitNumber = parseInt(limit, 10);
 		const skip = (pageNumber - 1) * limitNumber;
 
-		// Tìm kiếm theo tên ko phân biệt hoa thường
 		const query = {
 			name: {$regex: search, $options: 'i'},
 		};
 
-		// Xử lý sort
 		let sortOption = {};
 		if (sort === 'newest') sortOption = {createdAt: -1};
 		else if (sort === 'oldest') sortOption = {createdAt: 1};
@@ -40,7 +43,25 @@ exports.getAllColors = async (req, res) => {
 		else if (sort === 'name_desc') sortOption = {name: -1};
 
 		const totalColors = await Color.countDocuments(query);
+		// db.colors.countDocuments({name: {$regex: 'xanh', $options: 'i'}}); // Ví dụ với search = 'xanh'
+
 		const colors = await Color.find(query).sort(sortOption).skip(skip).limit(limitNumber);
+		// db.colors.aggregate([
+		// 	{
+		// 		$match: {
+		// 			name: {$regex: 'xanh', $options: 'i'},
+		// 		},
+		// 	},
+		// 	{
+		// 		$sort: {name: 1}, // name_asc
+		// 	},
+		// 	{
+		// 		$skip: 0, // (pageNumber - 1)  limitNumber
+		// 	},
+		// 	{
+		// 		$limit: 10, // limitNumber
+		// 	},
+		// ]);
 
 		const totalPages = Math.ceil(totalColors / limitNumber);
 
@@ -60,6 +81,7 @@ exports.getColorById = async (req, res) => {
 	try {
 		const {id} = req.params;
 		const color = await Color.findById(id);
+		//  db.colors.findOne({ _id: ObjectId("60c72b2f9b1d8e001c8e4d2a") });
 
 		if (!color) {
 			return res.status(404).json({message: 'Không tìm thấy màu'});
@@ -79,6 +101,14 @@ exports.updateColor = async (req, res) => {
 
 		const updatedColor = await Color.findByIdAndUpdate(id, {code, name, description}, {new: true});
 
+		// db.colors.findOneAndUpdate(
+		// 	{_id: ObjectId('60c72b2f9b1d8e001c8e4d2a')},
+		// 	{$set: {code: '#0000FF', name: 'Xanh dương (Cập nhật)', description: 'Màu xanh da trời'}},
+		// 	{returnDocument: 'after'}
+		// );
+		// Hoặc nếu chỉ muốn cập nhật và không cần trả về tài liệu:
+		// db.colors.updateOne({ _id: ObjectId("60c72b2f9b1d8e001c8e4d2a") }, { $set: { code: "#0000FF", name: "Xanh dương (Cập nhật)", description: "Màu xanh da trời" } });
+
 		if (!updatedColor) {
 			return res.status(404).json({message: 'Không tìm thấy màu để cập nhật'});
 		}
@@ -94,6 +124,9 @@ exports.deleteColor = async (req, res) => {
 	try {
 		const {id} = req.params;
 		const deletedColor = await Color.findByIdAndDelete(id);
+
+		//  db.colors.findOneAndDelete({ _id: ObjectId("60c72b2f9b1d8e001c8e4d2a") });
+		//  db.colors.deleteOne({ _id: ObjectId("60c72b2f9b1d8e001c8e4d2a") });không cần tài liệu đã xóa trả về
 
 		if (!deletedColor) {
 			return res.status(404).json({message: 'Không tìm thấy màu để xóa'});
@@ -115,6 +148,11 @@ exports.deleteMultipleColors = async (req, res) => {
 		}
 
 		const result = await Color.deleteMany({_id: {$in: ids}});
+		// db.colors.deleteMany({
+		// 	_id: {
+		// 		$in: [ObjectId('60c72b2f9b1d8e001c8e4d2a'), ObjectId('60c72b2f9b1d8e001c8e4d2b')],
+		// 	},
+		// });
 
 		res.status(200).json({
 			message: `Đã xóa ${result.deletedCount} màu`,

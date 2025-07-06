@@ -167,6 +167,12 @@ router.post('/resetPassword', authController.resetPassword);
 
 router.post('/change-password', auth, authController.changePassword);
 
+router.post('/createUser', authController.createUser);
+
+router.put('/updateUserByAdmin/:id', authController.updateUserByAdmin);
+
+router.delete('/deleteUser/:id', authController.deleteUser);
+
 /**
  * @swagger
  * /api/user/list:
@@ -202,6 +208,7 @@ router.get('/getListUser', authController.getListUser);
  */
 router.get('/getUserById/:id', authController.getUserById);
 
+// user
 /**
  * @swagger
  * /api/user/editUser/{id}:

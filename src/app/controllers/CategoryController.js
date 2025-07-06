@@ -7,7 +7,6 @@ exports.createCategory = async (req, res) => {
 		const {name, image} = req.body;
 		let sizes = [];
 
-		// sizes after JSON.parse
 		try {
 			sizes = JSON.parse(req.body.sizes);
 		} catch (err) {
@@ -29,6 +28,12 @@ exports.createCategory = async (req, res) => {
 		const category = new Category({name, image, sizes});
 		await category.save();
 
+		// db.categories.insertOne({
+		// 	name: 'Tên Danh Mục Mới',
+		// 	image: 'duong_dan_anh.jpg',
+		// 	sizes: ['id_size_1', 'id_size_2'], // Các ObjectId của size
+		// });
+
 		res.status(201).json({
 			message: 'Tạo danh mục thành công',
 			data: category,
@@ -47,22 +52,46 @@ exports.getAllCategories = async (req, res) => {
 		const limitNumber = parseInt(limit, 10);
 		const skip = (pageNumber - 1) * limitNumber;
 
-		// Tìm kiếm theo tên, không phân biệt hoa thường
 		const query = {
 			name: {$regex: search, $options: 'i'},
 		};
 
-		// Xử lý sort
 		let sortOption = {};
-		if (sort === 'newest') sortOption = {createdAt: -1};
-		else if (sort === 'oldest') sortOption = {createdAt: 1};
+		if (sort === 'newest') sortOption = {createdAt: -1}; // Z-A
+		else if (sort === 'oldest') sortOption = {createdAt: 1}; // A-Z
 		else if (sort === 'name_asc') sortOption = {name: 1};
 		else if (sort === 'name_desc') sortOption = {name: -1};
 
 		const totalItems = await Category.countDocuments(query);
+		// db.categories.countDocuments({ name: { $regex: 'áo', $options: 'i' } }).
 		const totalPages = Math.ceil(totalItems / limitNumber);
 
 		const categories = await Category.find(query).sort(sortOption).skip(skip).limit(limitNumber).populate('sizes');
+
+		// db.categories.aggregate([
+		// 	{
+		// 		$match: {
+		// 			name: {$regex: 'áo', $options: 'i'},
+		// 		},
+		// 	},
+		// 	{
+		// 		$sort: {createdAt: -1},
+		// 	},
+		// 	{
+		// 		$skip: 5,
+		// 	},
+		// 	{
+		// 		$limit: 5,
+		// 	},
+		// 	{
+		// 		$lookup: {
+		// 			from: 'sizes', // Tên collection của sizes
+		// 			localField: 'sizes', // Trường chứa ID trong collection categories
+		// 			foreignField: '_id', // Trường ID trong collection sizes
+		// 			as: 'sizes', // Tên trường mới sẽ chứa kết quả populate
+		// 		},
+		// 	},
+		// ]);
 
 		const result = categories.map((c) => ({
 			...c.toObject(),
@@ -83,26 +112,9 @@ exports.getAllCategories = async (req, res) => {
 // Get by id
 exports.getCategoryById = async (req, res) => {
 	try {
-		const category = await Category.findById(req.params.id).populate('sizes');
+		const {id} = req.params;
+		const category = await Category.findById(id).populate('sizes');
 		if (!category) return res.status(404).json({message: 'Không tìm thấy danh mục'});
-
-		res.status(200).json({
-			...category.toObject(),
-			image: category.image,
-		});
-	} catch (err) {
-		res.status(500).json({message: err.message});
-	}
-};
-
-exports.getCategoryByName = async (req, res) => {
-	try {
-		const {name} = req.params;
-
-		const category = await Category.findOne({name: name});
-		if (!category) {
-			return res.status(404).json({message: 'Không tìm thấy danh mục'});
-		}
 
 		res.status(200).json({
 			...category.toObject(),
@@ -132,6 +144,18 @@ exports.updateCategory = async (req, res) => {
 
 		const category = await Category.findByIdAndUpdate(id, {name, image, sizes}, {new: true});
 
+		// db.categories.findOneAndUpdate(
+		// 	{_id: ObjectId('685a19a30506867599f17b80')},
+		// 	{
+		// 		$set: {
+		// 			name: 'Tên Mới',
+		// 			image: 'duong_dan_anh_moi.jpg',
+		// 			sizes: [ObjectId('id_size_moi_1'), ObjectId('id_size_moi_2')],
+		// 		},
+		// 	},
+		// 	{returnDocument: 'after'} // giống new: true của Mongoose
+		// );
+
 		if (!category) return res.status(404).json({message: 'Không tìm thấy danh mục'});
 
 		return res.status(200).json({
@@ -147,9 +171,9 @@ exports.updateCategory = async (req, res) => {
 exports.deleteCategory = async (req, res) => {
 	try {
 		const category = await Category.findByIdAndDelete(req.params.id);
-		if (!category) return res.status(404).json({message: 'Không tìm thấy danh mục để xoá'});
+		// db.categories.findOneAndDelete({ _id: ObjectId("685a19a30506867599f17b80") });
 
-		await fs.unlink(`./src/uploads/${category.image}`).catch(() => {});
+		if (!category) return res.status(404).json({message: 'Không tìm thấy danh mục để xoá'});
 
 		res.status(200).json({message: 'Xoá danh mục thành công', data: category});
 	} catch (err) {
@@ -165,11 +189,13 @@ exports.deleteMultipleCategories = async (req, res) => {
 			return res.status(400).json({message: 'Vui lòng cung cấp mảng ID cần xoá'});
 		}
 
-		// Lấy danh sách các danh mục để xóa ảnh
-		const categories = await Category.find({_id: {$in: ids}});
-
-		// Xóa trong database
 		const result = await Category.deleteMany({_id: {$in: ids}});
+
+		// db.categories.deleteMany({
+		// 	_id: {
+		// 		$in: [ObjectId('id_cat_1'), ObjectId('id_cat_2')],
+		// 	},
+		// });
 
 		res.status(200).json({
 			message: `Đã xoá ${result.deletedCount} danh mục`,
