@@ -42,8 +42,8 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
 // Passport Middleware
-app.use(passport.initialize());
-app.use(passport.session());
+// app.use(passport.initialize());
+// app.use(passport.session());
 
 // Logging & Static files
 app.use(morgan('combined'));

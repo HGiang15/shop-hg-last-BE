@@ -8,7 +8,11 @@ module.exports = (req, res, next) => {
 
 	try {
 		const decoded = jwt.verify(token, process.env.JWT_SECRET);
-		req.user = decoded;
+		req.user = {
+			id: decoded.id,
+			name: decoded.name,
+			role: decoded.role,
+		};
 	} catch (err) {
 		if (process.env.NODE_ENV === 'development') {
 			console.warn('Optional JWT decode failed:', err.message);

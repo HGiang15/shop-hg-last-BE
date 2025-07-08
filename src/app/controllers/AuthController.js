@@ -121,6 +121,7 @@ exports.register = async (req, res) => {
 		);
 
 		res.status(201).json({
+			code: 'USER_PENDING_VERIFICATION',
 			status: 'Đang chờ xác minh',
 			message: 'Mã OTP đã được gửi đến email của bạn để xác minh.',
 			data: {userId: savedUser._id, email: savedUser.email},

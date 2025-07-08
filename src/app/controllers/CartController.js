@@ -5,7 +5,19 @@ const Size = require('../models/Size');
 const Product = require('../models/Product');
 
 exports.getAllCart = async (req, res) => {
-	const identifier = req.user ? {userId: req.user.id} : {cartToken: req.cookies.cartToken};
+	const userId = req.user?.id;
+	const cartToken = req.cookies?.cartToken;
+
+	console.log('>>> req.user:', req.user);
+	console.log('>>> req.cookies.cartToken:', req.cookies.cartToken);
+
+	if (!userId && !cartToken) {
+		console.warn('Không có userId hoặc cartToken hợp lệ');
+		return res.json({items: []});
+	}
+
+	const identifier = userId ? {userId} : {cartToken};
+	console.log('>>> condition for finding cart:', identifier);
 
 	const cart = await Cart.findOne(identifier)
 		.populate({path: 'items.productId', select: '-quantityBySize'})
@@ -20,14 +32,17 @@ exports.addToCart = async (req, res) => {
 	let cartToken = req.cookies.cartToken; // nếu là khách
 
 	try {
-		//  Tìm hoặc tạo giỏ hàng
-		let identifier = user ? {userId: user.id} : {cartToken};
 		if (!user && !cartToken) {
-			// Nếu là khách mà chưa có cartToken, tạo mới token
-			const newCartToken = generateCartToken();
-			res.cookie('cartToken', newCartToken, {httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000});
-			identifier.cartToken = newCartToken;
+			cartToken = generateCartToken();
+			res.cookie('cartToken', cartToken, {httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000});
 		}
+		// let identifier;
+		// if (user) {
+		// 	identifier = {userId: user.id};
+		// } else {
+		// 	identifier = {cartToken};
+		// }
+		const identifier = user ? {userId: user.id} : {cartToken};
 
 		let cart = await Cart.findOne(identifier);
 		if (!cart) cart = new Cart({...identifier, items: []});

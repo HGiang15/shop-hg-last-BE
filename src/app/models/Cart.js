@@ -10,8 +10,8 @@ const CartItemSchema = new Schema({
 
 const CartSchema = new Schema(
 	{
-		userId: {type: Schema.Types.ObjectId, ref: 'User', default: null},
-		cartToken: {type: String, default: null},
+		userId: {type: Schema.Types.ObjectId, ref: 'User', default: null, unique: true},
+		cartToken: {type: String, default: null, unique: true},
 		items: [CartItemSchema],
 	},
 	{timestamps: true}

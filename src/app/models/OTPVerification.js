@@ -3,8 +3,9 @@ const Schema = mongoose.Schema;
 
 const OTPVerificationSchema = new Schema({
 	userId: {
-		type: String,
+		type: mongoose.Schema.Types.ObjectId,
 		required: true,
+		ref: 'User',
 	},
 	otp: {
 		type: String,
