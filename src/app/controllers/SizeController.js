@@ -32,25 +32,22 @@ exports.getSizesByCategory = async (req, res) => {
 		const {categoryId} = req.params;
 
 		const category = await Category.findById(categoryId).populate('sizes');
-		/*
-		 * (Giả sử categoryId là "685a19a30506867599f17b80")
-		 * db.categories.aggregate([
-		 * {
-		 * $match: { _id: ObjectId("685a19a30506867599f17b80") }
-		 * },
-		 * {
-		 * $lookup: {
-		 * from: "sizes", // Tên collection của model Size
-		 * localField: "sizes", // Trường chứa ID trong collection categories
-		 * foreignField: "_id", // Trường ID trong collection sizes
-		 * as: "sizes" // Tên trường mới sẽ chứa kết quả populate
-		 * }
-		 * },
-		 * { $limit: 1 } // Chỉ lấy 1 tài liệu sau khi lookup
-		 * ]);
-		 * HOẶC nếu không cần populate và chỉ muốn tìm theo ID:
-		 * db.categories.findOne({ _id: ObjectId("685a19a30506867599f17b80") });
-		 */
+		//   db.categories.aggregate([
+		//   {
+		//   $match: { _id: ObjectId("685a19a30506867599f17b80") }
+		//   },
+		//   {
+		//   $lookup: {
+		//   from: "sizes", // Tên collection của model Size
+		//   localField: "sizes", // Trường chứa ID trong collection categories
+		//   foreignField: "_id", // Trường ID trong collection sizes
+		//   as: "sizes" // Tên trường mới sẽ chứa kết quả populate
+		//   }
+		//   },
+		//   { $limit: 1 } // Chỉ lấy 1 tài liệu sau khi lookup
+		//   ]);
+		//   không cần populate và chỉ muốn tìm theo ID:
+		//   db.categories.findOne({ _id: ObjectId("685a19a30506867599f17b80") });
 
 		if (!category) {
 			return res.status(404).json({message: 'Không tìm thấy danh mục'});

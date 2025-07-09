@@ -43,11 +43,11 @@ exports.createOrder = async (req, res) => {
 			orderItems.push({
 				productId: item.productId,
 				sizeId: item.sizeId,
+				quantity: item.quantity,
+				color: product.colors.find((c) => c.colorId.equals(item.colorId))?.name || product.colors[0]?.name || '',
 				name: product.name,
 				image: product.images?.[0] || '',
-				color: product.colors.find((c) => c.colorId.equals(item.colorId))?.name || product.colors[0]?.name || '',
 				size: sizeInfo.name,
-				quantity: item.quantity,
 				price: product.price,
 			});
 
@@ -87,7 +87,7 @@ exports.createOrder = async (req, res) => {
 				}
 			}
 
-			// Cập nhật số lượt dùng và người dùng đã sử dụng voucher
+			// Cập nhật số lượt dùng
 			voucher.quantity -= 1;
 			await voucher.save();
 			voucherId = voucher._id;
@@ -524,8 +524,10 @@ exports.createPaymentUrl = async (req, res) => {
 			vnp_Locale: VnpLocale.VN,
 		});
 
-		console.log('🔗 Redirect đến:', paymentUrl);
-		console.log('🔍 TMNCODE đang dùng:', process.env.VNP_TMNCODE);
+		// console.log('Redirect đến:', paymentUrl);
+		// console.log('TMNCODE đang dùng:', process.env.VNP_TMNCODE);
+
+		// console.log(paymentUrl);
 
 		res.status(200).json(paymentUrl);
 	} catch (err) {
@@ -537,7 +539,10 @@ exports.createPaymentUrl = async (req, res) => {
 // vnpay-return
 exports.returnPayment = async (req, res) => {
 	try {
+		// console.log('Tham số trả về từ VNPAY:', req.query);
 		const verify = vnpay.verifyReturnUrl(req.query);
+		// console.log('Đã xác minh chữ ký chưa:', verify.isVerified);
+		// console.log('Chữ ký VNPAY gửi về:', req.query.vnp_SecureHash);
 
 		const {vnp_TxnRef, vnp_ResponseCode} = req.query;
 
