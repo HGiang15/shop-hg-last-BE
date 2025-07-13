@@ -195,48 +195,48 @@ exports.login = async (req, res) => {
 			return res.status(403).json({status: 'Thất bại', message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'});
 		}
 
-		// Find giỏ hàng guest từ cookie
-		const cartToken = req.cookies.cartToken;
-		let guestCart = null;
+		// // Find giỏ hàng guest từ cookie
+		// const cartToken = req.cookies.cartToken;
+		// let guestCart = null;
 
-		if (cartToken) {
-			guestCart = await Cart.findOne({cartToken});
-		}
+		// if (cartToken) {
+		// 	guestCart = await Cart.findOne({cartToken});
+		// }
 
-		// Find giỏ hàng user trong DB
-		let userCart = await Cart.findOne({userId: user._id});
+		// // Find giỏ hàng user trong DB
+		// let userCart = await Cart.findOne({userId: user._id});
 
-		// Nếu có giỏ hàng của khách merge giỏ hàng
-		if (guestCart) {
-			if (!userCart) {
-				userCart = new Cart({userId: user._id, items: []});
-			}
+		// // Nếu có giỏ hàng của khách merge giỏ hàng
+		// if (guestCart) {
+		// 	if (!userCart) {
+		// 		userCart = new Cart({userId: user._id, items: []});
+		// 	}
 
-			for (const guestItem of guestCart.items) {
-				const exists = userCart.items.find(
-					(item) =>
-						item.productId.toString() === guestItem.productId.toString() &&
-						item.sizeId?.toString() === guestItem.sizeId?.toString()
-				);
+		// 	for (const guestItem of guestCart.items) {
+		// 		const exists = userCart.items.find(
+		// 			(item) =>
+		// 				item.productId.toString() === guestItem.productId.toString() &&
+		// 				item.sizeId?.toString() === guestItem.sizeId?.toString()
+		// 		);
 
-				if (exists) {
-					exists.quantity += guestItem.quantity;
-				} else {
-					userCart.items.push(guestItem);
-				}
-			}
+		// 		if (exists) {
+		// 			exists.quantity += guestItem.quantity;
+		// 		} else {
+		// 			userCart.items.push(guestItem);
+		// 		}
+		// 	}
 
-			await userCart.save();
-			await guestCart.deleteOne();
-			res.clearCookie('cartToken');
-		}
+		// 	await userCart.save();
+		// 	await guestCart.deleteOne();
+		// 	res.clearCookie('cartToken');
+		// }
 
 		const token = generateToken(user);
 
 		res.status(200).json({
 			status: 'Thành công',
 			message: 'Đăng nhập thành công!',
-			data: {id: user._id, name: user.name, email: user.email, role: user.role},
+			data: {id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar},
 			token,
 		});
 	} catch (error) {

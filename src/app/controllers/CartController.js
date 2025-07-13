@@ -8,8 +8,8 @@ exports.getAllCart = async (req, res) => {
 	const userId = req.user?.id;
 	const cartToken = req.cookies?.cartToken;
 
-	console.log('>>> req.user:', req.user);
-	console.log('>>> req.cookies.cartToken:', req.cookies.cartToken);
+	// console.log('>>> req.user:', req.user);
+	// console.log('>>> req.cookies.cartToken:', req.cookies.cartToken);
 
 	if (!userId && !cartToken) {
 		console.warn('Không có userId hoặc cartToken hợp lệ');
@@ -17,7 +17,7 @@ exports.getAllCart = async (req, res) => {
 	}
 
 	const identifier = userId ? {userId} : {cartToken};
-	console.log('>>> condition for finding cart:', identifier);
+	// console.log('>>> condition for finding cart:', identifier);
 
 	const cart = await Cart.findOne(identifier)
 		.populate({path: 'items.productId', select: '-quantityBySize'})
@@ -28,26 +28,22 @@ exports.getAllCart = async (req, res) => {
 
 exports.addToCart = async (req, res) => {
 	const {productId, quantity, sizeId} = req.body;
-	const user = req.user; // nếu đã login
-	let cartToken = req.cookies.cartToken; // nếu là khách
+	const userId = req.user?.id;
+	let cartToken = req.cookies?.cartToken;
 
 	try {
-		if (!user && !cartToken) {
+		// Nếu là guest chưa có cartToken → tạo mới
+		if (!userId && !cartToken) {
 			cartToken = generateCartToken();
 			res.cookie('cartToken', cartToken, {httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000});
 		}
-		// let identifier;
-		// if (user) {
-		// 	identifier = {userId: user.id};
-		// } else {
-		// 	identifier = {cartToken};
-		// }
-		const identifier = user ? {userId: user.id} : {cartToken};
+
+		const identifier = userId ? {userId} : {cartToken};
 
 		let cart = await Cart.findOne(identifier);
 		if (!cart) cart = new Cart({...identifier, items: []});
 
-		// cộng dồn số lượng
+		// Tìm sản phẩm đã có sẵn chưa
 		const existingItem = cart.items.find((item) => item.productId.equals(productId) && item.sizeId.equals(sizeId));
 
 		if (existingItem) {
@@ -56,7 +52,6 @@ exports.addToCart = async (req, res) => {
 			cart.items.push({productId, quantity, sizeId});
 		}
 
-		// Lưu và trả về giỏ hàng populate đầy đủ thông tin
 		await cart.save();
 		const populatedCart = await Cart.findOne(identifier).populate('items.productId').populate('items.sizeId');
 		res.json(populatedCart);
@@ -68,11 +63,14 @@ exports.addToCart = async (req, res) => {
 
 exports.updateItem = async (req, res) => {
 	const {itemId, quantity} = req.body;
-	const identifier = req.user ? {userId: req.user.id} : {cartToken: req.cookies.cartToken};
+	const userId = req.user?.id;
+	const cartToken = req.cookies?.cartToken;
 
-	if (quantity <= 0) {
-		return exports.removeItem(req, res);
-	}
+	const identifier = userId ? {userId} : {cartToken};
+
+	// if (quantity <= 0) {
+	// 	return exports.removeItem(req, res);
+	// }
 
 	try {
 		const cart = await Cart.findOneAndUpdate({...identifier, 'items._id': itemId}, {$set: {'items.$.quantity': quantity}}, {new: true})
@@ -92,14 +90,13 @@ exports.updateItem = async (req, res) => {
 
 exports.removeItem = async (req, res) => {
 	const {itemId} = req.params;
-	const identifier = req.user ? {userId: req.user.id} : {cartToken: req.cookies.cartToken};
+	const userId = req.user?.id;
+	const cartToken = req.cookies?.cartToken;
+
+	const identifier = userId ? {userId} : {cartToken};
 
 	try {
-		const cart = await Cart.findOneAndUpdate(
-			identifier,
-			{$pull: {items: {_id: itemId}}}, // $pull: để xóa item khỏi mảng
-			{new: true}
-		)
+		const cart = await Cart.findOneAndUpdate(identifier, {$pull: {items: {_id: itemId}}}, {new: true})
 			.populate('items.productId')
 			.populate('items.sizeId');
 
