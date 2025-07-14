@@ -24,7 +24,7 @@ exports.createContactMessage = async (req, res) => {
 	}
 };
 
-// admin Trả lời tin nhắn của khách hàng qua email
+// admin trả lời tin nhắn của khách hàng qua email
 exports.replyToMessage = async (req, res) => {
 	try {
 		const {replyMessage, attachments = []} = req.body;
