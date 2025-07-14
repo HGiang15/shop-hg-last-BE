@@ -33,6 +33,7 @@ exports.applyVoucher = async (req, res) => {
 		return res.json({
 			success: true,
 			message: 'Áp dụng mã thành công',
+			code,
 			discountAmount,
 			finalPrice,
 			voucherId: voucher._id,
@@ -117,18 +118,62 @@ exports.getAllVouchers = async (req, res) => {
 	}
 };
 
-// POST create voucher
+// POST create voucher Admin
 exports.createVoucher = async (req, res) => {
 	try {
-		const newVoucher = new Voucher(req.body);
+		const {code, discountType, discountValue, minOrderValue, maxDiscount, quantity, startDate, endDate, showAt, isActive} = req.body;
+
+		// Validate cơ bản
+		if (!code || !code.trim()) {
+			return res.status(400).json({message: 'Mã voucher không được để trống'});
+		}
+
+		if (!['percent', 'fixed'].includes(discountType)) {
+			return res.status(400).json({message: 'Loại giảm giá không hợp lệ'});
+		}
+
+		if (!discountValue || isNaN(discountValue) || discountValue < 0) {
+			return res.status(400).json({message: 'Giá trị giảm giá không hợp lệ'});
+		}
+
+		if (!minOrderValue || isNaN(minOrderValue) || minOrderValue < 0) {
+			return res.status(400).json({message: 'Giá trị đơn tối thiểu không hợp lệ'});
+		}
+
+		if (discountType === 'percent' && (!maxDiscount || isNaN(maxDiscount) || maxDiscount < 0)) {
+			return res.status(400).json({message: 'Giảm tối đa không hợp lệ đối với loại giảm phần trăm'});
+		}
+
+		if (!quantity || isNaN(quantity) || quantity < 0) {
+			return res.status(400).json({message: 'Số lượng không hợp lệ'});
+		}
+
+		if (!startDate || !endDate || new Date(endDate) < new Date(startDate)) {
+			return res.status(400).json({message: 'Ngày bắt đầu/kết thúc không hợp lệ'});
+		}
+
+		const newVoucher = new Voucher({
+			code: code.trim(),
+			discountType,
+			discountValue,
+			minOrderValue,
+			maxDiscount: discountType === 'percent' ? maxDiscount : null,
+			quantity,
+			startDate,
+			endDate,
+			showAt: showAt || startDate,
+			isActive: isActive !== undefined ? isActive : true,
+		});
+
 		const saved = await newVoucher.save();
 		res.status(201).json(saved);
 	} catch (err) {
+		console.error(err);
 		res.status(400).json({message: 'Tạo voucher thất bại', error: err.message});
 	}
 };
 
-// GET one voucher by ID (Admin)
+// GET one voucher by ID Admin
 exports.getVoucherById = async (req, res) => {
 	try {
 		const voucher = await Voucher.findById(req.params.id);
@@ -139,13 +184,54 @@ exports.getVoucherById = async (req, res) => {
 	}
 };
 
-// PUT update voucher
+// PUT update voucher Admin
 exports.updateVoucher = async (req, res) => {
 	try {
+		const {code, discountType, discountValue, minOrderValue, maxDiscount, quantity, startDate, endDate, showAt, isActive} = req.body;
+
+		if (!code || typeof code !== 'string' || code.trim() === '') {
+			return res.status(400).json({message: 'Mã voucher không được để trống'});
+		}
+
+		if (!['fixed', 'percent'].includes(discountType)) {
+			return res.status(400).json({message: 'Loại giảm giá không hợp lệ'});
+		}
+
+		if (isNaN(discountValue) || discountValue < 0) {
+			return res.status(400).json({message: 'Giá trị giảm giá không hợp lệ'});
+		}
+
+		if (isNaN(minOrderValue) || minOrderValue < 0) {
+			return res.status(400).json({message: 'Đơn tối thiểu không hợp lệ'});
+		}
+
+		if (discountType === 'percent') {
+			if (maxDiscount === undefined || isNaN(maxDiscount) || maxDiscount < 0) {
+				return res.status(400).json({message: 'Giảm tối đa không hợp lệ với loại phần trăm'});
+			}
+		}
+
+		if (isNaN(quantity) || quantity < 0) {
+			return res.status(400).json({message: 'Số lượng không hợp lệ'});
+		}
+
+		if (!startDate || !endDate || new Date(endDate) < new Date(startDate)) {
+			return res.status(400).json({message: 'Ngày bắt đầu/kết thúc không hợp lệ'});
+		}
+
+		if (!showAt) {
+			return res.status(400).json({message: 'Vui lòng chọn ngày hiển thị'});
+		}
+
 		const updated = await Voucher.findByIdAndUpdate(req.params.id, req.body, {new: true});
-		if (!updated) return res.status(404).json({message: 'Không tìm thấy voucher'});
+
+		if (!updated) {
+			return res.status(404).json({message: 'Không tìm thấy voucher'});
+		}
+
 		res.json(updated);
 	} catch (err) {
+		console.error(err);
 		res.status(400).json({message: 'Cập nhật voucher thất bại', error: err.message});
 	}
 };

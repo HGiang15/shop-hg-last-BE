@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 
 module.exports = (req, res, next) => {
-	const authHeader = req.headers['authorization'];
-	if (!authHeader || !authHeader.startsWith('Bearer ')) return next();
+	const authHeader = req.headers.authorization;
+	if (!authHeader || !authHeader.startsWith('Bearer ')) return next(); // nếu ko có token thì là guest
 
 	const token = authHeader.split(' ')[1];
 

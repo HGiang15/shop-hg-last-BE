@@ -129,7 +129,7 @@ exports.mergeCart = async (req, res) => {
 				await Cart.deleteOne({cartToken});
 			}
 			res.clearCookie('cartToken');
-			return res.json({message: 'Guest cart is empty, nothing to merge.', cart: userCart});
+			return res.json({message: 'Giỏ hàng của khách trống, không có gì để hợp nhất.', cart: userCart});
 		}
 
 		if (!userCart) {
@@ -141,7 +141,7 @@ exports.mergeCart = async (req, res) => {
 			const populatedCart = await Cart.findById(guestCart._id)
 				.populate({path: 'items.productId'})
 				.populate({path: 'items.sizeId', select: 'name'});
-			return res.json({message: 'Guest cart assigned to user successfully.', cart: populatedCart});
+			return res.json({message: 'Giỏ hàng của khách đã được gán cho người dùng thành công.', cart: populatedCart});
 		}
 
 		for (const guestItem of guestCart.items) {
@@ -170,8 +170,9 @@ exports.mergeCart = async (req, res) => {
 			.populate({path: 'items.productId'})
 			.populate({path: 'items.sizeId', select: 'name'});
 
-		res.json({message: 'Carts merged successfully', cart: populatedCart});
+		res.json({message: 'Giỏ hàng được gộp thành công', cart: populatedCart});
 	} catch (err) {
-		return res.status(500).json({message: 'Error merging cart'});
+		console.error('Lỗi khi hợp nhất giỏ hàng:', err);
+		return res.status(500).json({message: 'Lỗi khi hợp nhất giỏ hàng'});
 	}
 };

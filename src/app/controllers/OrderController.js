@@ -126,6 +126,7 @@ exports.getUserOrders = async (req, res) => {
 	}
 };
 
+// admin
 exports.getAllOrders = async (req, res) => {
 	try {
 		const {page = 1, limit = 10, status, search = '', sort = 'newest', startDate, endDate} = req.query;
@@ -194,6 +195,7 @@ exports.getAllOrders = async (req, res) => {
 	}
 };
 
+// admin
 exports.getOrderById = async (req, res) => {
 	try {
 		const {id} = req.params;
@@ -241,7 +243,7 @@ exports.updateStatus = async (req, res) => {
 			for (const item of order.items) {
 				const product = await Product.findById(item.productId); // Lấy lại thông tin sản phẩm
 				if (!product) {
-					console.warn(`Product with ID ${item.productId} not found while restocking order ${order._id}`);
+					console.warn(`Không tìm thấy sản phẩm có ID ${item.productId} khi đang hoàn kho đơn hàng ${order._id}`);
 					continue;
 				}
 
@@ -260,7 +262,7 @@ exports.updateStatus = async (req, res) => {
 					);
 					stockUpdatePromises.push(updatePromise);
 				} else {
-					console.warn(`Size "${item.size}" not found for product ${item.productId} while restocking.`);
+					console.warn(`Không tìm thấy kích thước "${item.size}" cho sản phẩm ${item.productId} khi đang bổ sung hàng.`);
 				}
 			}
 		}
@@ -280,6 +282,7 @@ exports.updateStatus = async (req, res) => {
 	}
 };
 
+// admin
 exports.deleteOrder = async (req, res) => {
 	try {
 		const {id} = req.params;

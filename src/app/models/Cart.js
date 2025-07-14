@@ -10,8 +10,8 @@ const CartItemSchema = new Schema({
 
 const CartSchema = new Schema(
 	{
-		userId: {type: Schema.Types.ObjectId, ref: 'User', default: null, unique: true},
-		cartToken: {type: String, default: null, unique: true},
+		userId: {type: Schema.Types.ObjectId, ref: 'User', default: null},
+		cartToken: {type: String, default: null},
 		items: [CartItemSchema],
 	},
 	{timestamps: true}
@@ -35,5 +35,3 @@ module.exports = mongoose.model('Cart', CartSchema);
 //     },
 //     {timestamps: true}
 // );
-
-// module.exports = mongoose.model('Cart', CartSchema);
