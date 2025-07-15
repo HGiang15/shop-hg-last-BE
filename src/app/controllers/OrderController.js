@@ -33,6 +33,7 @@ exports.createOrder = async (req, res) => {
 			const product = await Product.findById(item.productId);
 			if (!product) return res.status(404).json({message: `Sản phẩm với ID ${item.productId} không tồn tại.`});
 
+			// Kiểm tra size mà người dùng chọn có tồn tại ko
 			const sizeInfo = product.quantityBySize.find((s) => s.sizeId.equals(item.sizeId));
 			if (!sizeInfo) return res.status(400).json({message: `Sản phẩm "${product.name}" không có size bạn chọn.`});
 
@@ -61,7 +62,7 @@ exports.createOrder = async (req, res) => {
 			stockUpdatePromises.push(updatePromise);
 		}
 
-		let discountAmount = 0;
+		let discountAmount = 0; // lưu số tiền được giảm
 		let voucherId = null;
 
 		//   ÁP DỤNG VOUCHER nếu có
