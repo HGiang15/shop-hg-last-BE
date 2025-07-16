@@ -26,6 +26,7 @@ exports.getReviewsByProductId = async (req, res) => {
 	}
 };
 
+// user
 exports.addReview = async (req, res) => {
 	try {
 		const {productId, rating, comment} = req.body;
@@ -85,7 +86,7 @@ exports.addReview = async (req, res) => {
 	}
 };
 
-// Lấy tất cả đánh giả của 1 người dùng
+// Lấy tất cả đánh giả của 1 người dùng review profile
 exports.getReviewsByUser = async (req, res) => {
 	try {
 		const userId = req.user._id;
@@ -127,6 +128,7 @@ exports.getReviewById = async (req, res) => {
 	}
 };
 
+// user
 exports.updateReview = async (req, res) => {
 	try {
 		const {id} = req.params;
