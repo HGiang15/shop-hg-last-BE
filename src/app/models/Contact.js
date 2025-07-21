@@ -27,7 +27,7 @@ const contactSchema = new mongoose.Schema(
 		},
 		status: {
 			type: String,
-			enum: ['new', 'read', 'replied'], // Trạng thái của tin nhắn
+			enum: ['new', 'read', 'replied'],
 			default: 'new',
 		},
 		attachments: {
